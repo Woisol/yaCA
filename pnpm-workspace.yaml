@@ -1,0 +1,4 @@
+# 在 package.json 中定义 workspaces 是给 npm 用的，pnpm 需要在这里设置
+packages:
+- 'apps/*'
+- 'packages/*'

@@ -1,0 +1,13 @@
+{
+  "name": "@yaca/agent-tools",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Woisol-G",
+  "license": "ISC",
+  "description": ""
+}

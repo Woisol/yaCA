@@ -1,0 +1,35 @@
+{
+  "name": "@woisol-g/yaca",
+  "version": "0.1.0",
+  "description": "Yet another Coding Agent.",
+  "type": "module",
+  "bin": {
+    "yaca": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run typecheck && node --import tsx --test test/*.test.ts",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@woisol-g/sxml.js": "^0.2.1",
+    "commander": "^14.0.3",
+    "ink": "^7.0.2",
+    "react": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/node": "^22.15.3",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

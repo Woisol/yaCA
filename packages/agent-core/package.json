@@ -1,0 +1,13 @@
+{
+  "name": "@yaca/agent-core",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Woisol-G",
+  "license": "ISC",
+  "description": ""
+}

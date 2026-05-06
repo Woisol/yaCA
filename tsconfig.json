@@ -1,0 +1,58 @@
+{
+  "compilerOptions": {
+    // "baseUrl": ".", // deprecated
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "types": [
+      "node"
+    ],
+    "declaration": true,
+    "paths": {
+      "@yaca/cli/*": [
+        "./apps/cli/src/*"
+      ],
+      "@yaca/web/*": [
+        "./apps/web/src/*"
+      ],
+      "@yaca/agent-core": [
+        "./packages/agent-core/src/index.ts"
+      ],
+      "@yaca/agent-core/*": [
+        "./packages/agent-core/src/*"
+      ],
+      "@yaca/agent-tools": [
+        "./packages/agent-tools/src/index.ts"
+      ],
+      "@yaca/agent-tools/*": [
+        "./packages/agent-tools/src/*"
+      ],
+      "@yaca/types": [
+        "./packages/shared/types/index.ts"
+      ],
+      "@yaca/types/*": [
+        "./packages/shared/types/*"
+      ],
+      "@yaca/ui/*": [
+        "./packages/shared/ui/src/*"
+      ],
+      "@yaca/utils/*": [
+        "./packages/utils/*"
+      ]
+    }
+  },
+  "include": [
+    "test/**/*.ts",
+    "apps/**/*.ts",
+    // 记得加 tsx 啊啊，不加不解析 @path！
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+  ],
+}
