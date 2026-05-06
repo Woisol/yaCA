@@ -47,7 +47,10 @@ YACA 的核心是一个**以 CLI 为主程序的、功能完备的 Coding Agent 
 ## 四、 技术选型与可行性分析
 
 ### 4.1 技术栈全景图
-```mermaid
+
+![技术栈全景图](./img/techstack.png)
+
+<!-- ```mermaid
 mindmap
   root((YACA 技术栈))
     核心语言
@@ -68,7 +71,7 @@ mindmap
     开发工具
       pnpm、Vite
       TypeScript、ESLint
-```
+``` -->
 
 ### 4.2 关键选型决策与依据
 
@@ -87,16 +90,7 @@ mindmap
 ### 5.1 整体架构分层
 系统采用清晰的分层架构，各层职责明确，通过定义良好的接口进行通信。
 
-```mermaid
-flowchart TD
-    A[用户输入<br/>REPL / HTTP] --> B[CLI 引导层<br/>参数解析 & 模式选择]
-    B --> C[输入预处理层<br/>命令解析 & path解析 & 多模态构造]
-    C --> D[Agent 执行内核<br/>循环 & XML 解析]
-    D --> E[工具执行层<br/>文件操作 & 命令执行]
-    E --> F[输出与交互层<br/>流式渲染 & Diff 展示]
-    D -.-> G[(上下文管理<br/>历史 & 系统提示词)]
-    F -..-> G
-```
+![架构分层图](./img/architecture.png)
 
 **各层说明**：
 - **CLI 引导层**：处理命令行参数，选择启动 REPL 模式或 Server 模式。
@@ -128,15 +122,16 @@ flowchart TD
 ### 6.2 工具集与工具注册表
 第一版工具集聚焦于开发者最常用的能力：
 
- | 工具名           | 功能               | 关键参数                                                                               | 优先级 |
- | ---------------- | ------------------ | -------------------------------------------------------------------------------------- | ------ |
- | `get_tool_hint`  | 获取工具使用格式   | `toolName?`                                                                            | P0     |
- | `read_file`      | 读取文件内容       | `path`, `startLineNumber?`, `startColumn?`, `endLineNumber?`, `endColumn?`             | P0     |
- | `write_file`     | 创建或完全覆写文件 | `path`, `content`, `append?`, `encoding?`, `dangerouslyOverride?`                      | P0     |
- | `replace_file`   | 精准替换文件内容   | `path`, `new_text`, `startLineNumber?`, `startColumn?`, `endLineNumber?`, `endColumn?` | P0     |
- | `list_directory` | 列出目录结构       | `path`, `recursive?`                                                                   | P0     |
- | `search_files`   | 全文搜索           | `pattern`, `path?`, `include?`                                                         | P1     |
- | `exec_command`   | 执行 Shell 命令    | `command`, `timeout?`, `cwd?`                                                          | P0     |
+ | 工具名           | 功能               | 关键参数                                                                               |
+ | ---------------- | ------------------ | -------------------------------------------------------------------------------------- |
+ | `get_tool_hint`  | 获取工具使用格式   | `toolName?`                                                                            |
+ | `read_file`      | 读取文件内容       | `path`, `startLineNumber?`, `startColumn?`, `endLineNumber?`, `endColumn?`             |
+ | `write_file`     | 创建或完全覆写文件 | `path`, `content`, `append?`, `encoding?`, `dangerouslyOverride?`                      |
+ | `replace_file`   | 精准替换文件内容   | `path`, `new_text`, `startLineNumber?`, `startColumn?`, `endLineNumber?`, `endColumn?` |
+ | `list_directory` | 列出目录结构       | `path`, `recursive?`                                                                   |
+ | `search_files`   | 全文搜索           | `pattern`, `path?`, `include?`                                                         |
+ | `exec_command`   | 执行 Shell 命令    | `command`, `timeout?`, `cwd?`                                                          |
+
 **核心设计**：所有工具通过一个**工具注册表**进行管理。每个工具在注册时需提供：名称、描述、参数格式、执行函数。Agent 内核通过注册表查询工具描述，动态生成系统提示词，在解析到工具调用时通过名称查找并执行相应函数，实现了解耦。
 
 ### 6.3 交互式 UI/UX 设计
@@ -154,17 +149,8 @@ flowchart TD
 
 ### 7.1 存储结构
 参考 Claude Code 的 `~/.claude` 目录模式，设计 `~/.yaca/` 全局配置目录。
-```
-~/.yaca/
-├── config.json        # 全局配置（默认模型、Base URL列表）
-├── sessions/          # 会话数据
-│   └── <project-hash>/ # 按项目路径哈希分目录
-│       ├── meta.json     # 该项目的会话列表
-│       └── <session-id>/ # 具体会话
-│           ├── session.json    # 会话元数据
-│           └── messages.jsonl  # 对话历史（JSONL格式）
-└── cache/             # 临时缓存（如Base64编码的图片）
-```
+
+![存储结构](./img/store.png)
 
 ### 7.2 会话管理流程
 - **启动**：首次进入时，用户创建新会话或恢复历史会话（通过 `/resume` 命令）。
@@ -195,11 +181,14 @@ flowchart TD
 3. **一套完整的开发文档**：包括设计决策记录、API 文档、使用指南和开发指南。
 4.  **一个跨平台的前端原型**：Web 客户端和 Tauri 桌面客户端的参考实现。
 
+
 ### 9.2 主要创新点
 1. **自研流式 XML 工具调用解析**：与依赖模型特定输出格式的方案不同，我们采用更通用的 XML 标签解析方式，理论上可兼容更多模型，并实现更细粒度的实时控制。
 2.  **CLI-核心，多端复用的架构**：明确了 CLI 作为核心引擎的地位，通过共享业务逻辑层实现了到 Web 和桌面端的扩展，这在同类开源项目中较为少见。
 3. **集成云端多模态模型**：通过 Qwen3.6 API 深度集成，并优化了从图片引用到模型适配的全链路，提供可复用的实践方案。
 4.  **系统化的多模态交互设计**：从 `@path` 引用到剪贴板粘贴，设计了一套完整、流畅的多模态输入交互体验。
+
+![预期成果图](./img/product.png)
 
 ## 十、 可能面临的风险与挑战
 
