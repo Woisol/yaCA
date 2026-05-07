@@ -15,16 +15,19 @@ type CliArgs = {
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
-  const cwd = process.cwd();
   const configStore = new ConfigStore();
   const config = await configStore.load();
+
   const model = args.model ?? config.default_model;
   const baseUrl = args.baseUrl ?? config.models.find((item) => item.name === model)?.base_url;
   const state: CliState = { model, baseUrl, config, configStore };
+
+  const cwd = process.cwd();
   const store = new SessionStore({ workspace: cwd });
   const tools = createDefaultToolRegistry(cwd);
   const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: process.env.YACA_API_KEY }), tools });
 
+  // TODO Server & once 稍后审查
   if (args.serve !== undefined) {
     startServer({ port: args.serve, agent: createAgent(), cwd });
     output.write(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
