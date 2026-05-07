@@ -3,15 +3,22 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 
 export type YacaConfig = {
-  default_model: string;
-  models: Array<{ name: string; base_url: string }>;
+  model: string;
+  base_url: string;
+  api_key?: string;
 };
 
+type LegacyYacaConfig = Partial<YacaConfig> & {
+  default_model?: string;
+  models?: Array<{ name: string; base_url: string }>;
+};
+
+const defaultModel = 'qwen2.5-vl-7b';
+const defaultBaseUrl = 'http://127.0.0.1:11434/v1';
+
 const defaultConfig: YacaConfig = {
-  default_model: 'qwen2.5-vl-7b',
-  models: [
-    { name: 'qwen2.5-vl-7b', base_url: 'http://127.0.0.1:11434/v1' }
-  ]
+  model: defaultModel,
+  base_url: defaultBaseUrl
 };
 
 export class ConfigStore {
@@ -24,15 +31,28 @@ export class ConfigStore {
   async load(): Promise<YacaConfig> {
     try {
       const content = await readFile(this.configPath, 'utf8');
-      return { ...defaultConfig, ...JSON.parse(content) as Partial<YacaConfig> };
+      return normalizeConfig(JSON.parse(content) as LegacyYacaConfig);
     } catch {
       await this.save(defaultConfig);
-      return defaultConfig;
+      return { ...defaultConfig };
     }
   }
 
   async save(config: YacaConfig): Promise<void> {
     await mkdir(path.dirname(this.configPath), { recursive: true });
-    await writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf8');
+    await writeFile(this.configPath, JSON.stringify(normalizeConfig(config), null, 2), 'utf8');
   }
+}
+
+function normalizeConfig(config: LegacyYacaConfig): YacaConfig {
+  const model = config.model || config.default_model || defaultModel;
+  const baseUrl = config.base_url
+    || config.models?.find((item) => item.name === model)?.base_url
+    || config.models?.[0]?.base_url
+    || defaultBaseUrl;
+  return {
+    model,
+    base_url: baseUrl,
+    ...(config.api_key ? { api_key: config.api_key } : {})
+  };
 }

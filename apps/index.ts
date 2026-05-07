@@ -18,16 +18,15 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const configStore = new ConfigStore();
   const config = await configStore.load();
 
-  const model = args.model ?? config.default_model;
-  const baseUrl = args.baseUrl ?? config.models.find((item) => item.name === model)?.base_url;
-  const state: CliState = { model, baseUrl, config, configStore };
+  const model = args.model ?? config.model;
+  const baseUrl = args.baseUrl ?? config.base_url;
+  const state: CliState = { model, baseUrl, apiKey: process.env.YACA_API_KEY ?? config.api_key, config, configStore };
 
   const cwd = process.cwd();
   const store = new SessionStore({ workspace: cwd });
   const tools = createDefaultToolRegistry(cwd);
-  const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: process.env.YACA_API_KEY }), tools });
+  const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }), tools });
 
-  // TODO Server & once 稍后审查
   if (args.serve !== undefined) {
     startServer({ port: args.serve, agent: createAgent(), cwd });
     output.write(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
@@ -42,8 +41,6 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   startInkRepl({ cwd, state, store, createAgent });
-  return;
-
 }
 
 async function runOne(inputText: string, state: CliState, store: SessionStore, agent: AgentLoop, cwd: string): Promise<void> {
@@ -57,16 +54,22 @@ async function runOne(inputText: string, state: CliState, store: SessionStore, a
     if (event.type === 'assistant_text') {
       output.write(`${event.text}\n`);
       await store.appendMessage(state.sessionId, { role: 'assistant', content: event.text });
+    } else if (event.type === 'assistant_delta') {
+      output.write(event.text);
+    } else if (event.type === 'assistant_replace') {
+      output.write(`\n${event.text}`);
     } else if (event.type === 'tool_call') {
-      output.write(`⚡ ${event.call.name} ${JSON.stringify(event.call.args)}\n`);
+      output.write(`tool ${event.call.name} ${JSON.stringify(event.call.args)}\n`);
+    } else if (event.type === 'tool_result') {
+      output.write(`${event.result.ok ? 'ok' : 'error'} ${event.call.name}: ${event.result.content}\n`);
     } else {
-      output.write(`${event.result.ok ? '✓' : '✗'} ${event.call.name}: ${event.result.content}\n`);
+      output.write(`Error: ${event.message}\n`);
     }
   }
 }
 
 export function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { model: process.env.YACA_MODEL ?? '', baseUrl: process.env.YACA_BASE_URL };
+  const args: CliArgs = { model: process.env.YACA_MODEL ?? undefined, baseUrl: process.env.YACA_BASE_URL };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === '--serve') {

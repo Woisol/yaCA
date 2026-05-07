@@ -4,6 +4,7 @@ import type { ConfigStore, YacaConfig } from '@yaca/agent-core/storage/config-st
 export type CliState = {
   model: string;
   baseUrl?: string;
+  apiKey?: string;
   sessionId?: string;
   config: YacaConfig;
   configStore: ConfigStore;
@@ -20,19 +21,19 @@ export const builtinCommands: BuiltinCommand[] = [
   {
     name: '/help',
     usage: '/help',
-    description: '显示帮助信息',
+    description: 'Show help',
     handle() {
-      return ['YACA commands:', ...builtinCommands.map((command) => `${command.usage.padEnd(18)} ${command.description}`)].join('\n');
+      return ['YACA commands:', ...builtinCommands.map((command) => `${command.usage.padEnd(22)} ${command.description}`)].join('\n');
     }
   },
   {
     name: '/model',
     usage: '/model <name>',
-    description: '切换模型',
+    description: 'Set the current model',
     async handle(value, state) {
       if (!value) return 'Usage: /model <name>';
       state.model = value;
-      state.config.default_model = value;
+      state.config.model = value;
       await state.configStore.save(state.config);
       return `Model set to ${state.model}`;
     }
@@ -40,19 +41,31 @@ export const builtinCommands: BuiltinCommand[] = [
   {
     name: '/baseurl',
     usage: '/baseurl <url>',
-    description: '设置 Base URL',
+    description: 'Set the OpenAI-compatible base URL',
     async handle(value, state) {
       if (!value) return 'Usage: /baseurl <url>';
       state.baseUrl = value;
-      state.config.models = upsertModelBaseUrl(state.config.models, state.model, value);
+      state.config.base_url = value;
       await state.configStore.save(state.config);
       return `Base URL set to ${state.baseUrl}`;
     }
   },
   {
+    name: '/apikey',
+    usage: '/apikey <key>',
+    description: 'Set the API key',
+    async handle(value, state) {
+      if (!value) return 'Usage: /apikey <key>';
+      state.apiKey = value;
+      state.config.api_key = value;
+      await state.configStore.save(state.config);
+      return 'API key set.';
+    }
+  },
+  {
     name: '/clear',
     usage: '/clear',
-    description: '清除上下文并开始新会话',
+    description: 'Clear context and start a new session',
     async handle(_value, state, store) {
       const session = await store.createSession('New session');
       state.sessionId = session.id;
@@ -62,7 +75,7 @@ export const builtinCommands: BuiltinCommand[] = [
   {
     name: '/resume',
     usage: '/resume [session-id]',
-    description: '浏览历史会话',
+    description: 'List sessions or resume one by id',
     async handle(value, state, store) {
       if (value) {
         const session = await store.resumeSession(value);
@@ -76,9 +89,20 @@ export const builtinCommands: BuiltinCommand[] = [
     }
   },
   {
+    name: '/continue',
+    usage: '/continue',
+    description: 'Continue the most recent session',
+    async handle(_value, state, store) {
+      const [session] = await store.listSessions();
+      if (!session) return 'No sessions found for this project.';
+      state.sessionId = session.id;
+      return `Continued session ${session.id}`;
+    }
+  },
+  {
     name: '/exit',
     usage: '/exit',
-    description: '退出 REPL',
+    description: 'Exit REPL',
     handle() {
       return '/exit';
     }
@@ -89,13 +113,4 @@ export async function handleBuiltinCommand(input: string, state: CliState, store
   const [command, ...rest] = input.trim().split(/\s+/);
   const value = rest.join(' ');
   return builtinCommands.find((item) => item.name === command)?.handle(value, state, store);
-}
-
-// 改成固定一个而非多个 model
-function upsertModelBaseUrl(models: YacaConfig['models'], name: string, baseUrl: string): YacaConfig['models'] {
-  const existing = models.find((model) => model.name === name);
-  if (existing) {
-    return models.map((model) => model.name === name ? { ...model, base_url: baseUrl } : model);
-  }
-  return [...models, { name, base_url: baseUrl }];
 }

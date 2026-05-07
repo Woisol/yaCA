@@ -11,7 +11,8 @@ const { SxmlParser } = sxml as unknown as { SxmlParser: new (config: Constructor
 export type YacaSxmlEvent =
   | { type: 'text'; content: string }
   | { type: 'think'; content: string }
-  | { type: 'tool_call'; toolName: string; args: Record<string, unknown>; content: string };
+  | { type: 'tool_call'; toolName: string; args: Record<string, unknown>; content: string }
+  | { type: 'parse_error'; message: string; content: string };
 
 export type YacaSxmlPatch = {
   update?: YacaSxmlEvent | null;
@@ -32,8 +33,12 @@ const toolCallHandler: TagHandler = {
         args,
         content
       };
-    } catch {
-      return { type: 'text', content: `<tool_call name="${attrs.name ?? ''}">${content}</tool_call>` };
+    } catch (error) {
+      return {
+        type: 'parse_error',
+        message: `Failed to parse assistant tool call: ${formatParseError(error)}`,
+        content
+      };
     }
   }
 };
@@ -115,6 +120,13 @@ function normalizeEvent(event: SxmlEvent | null): YacaSxmlEvent | null {
       content: readString(event.content)
     };
   }
+  if (event.type === 'parse_error') {
+    return {
+      type: 'parse_error',
+      message: readString(event.message),
+      content: readString(event.content)
+    };
+  }
   return { type: 'text', content: readString(event.content) };
 }
 
@@ -131,4 +143,11 @@ function readString(value: unknown): string {
 
 function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function formatParseError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  if (error.message.startsWith('Unexpected token')) return 'Unexpected token';
+  const [summary] = error.message.split(':');
+  return summary || error.message;
 }

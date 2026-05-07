@@ -37,10 +37,14 @@ export type ToolDefinition = {
 };
 
 export type AgentEvent =
+  | { type: 'assistant_delta'; text: string }
+  | { type: 'assistant_replace'; text: string }
   | { type: 'assistant_text'; text: string }
   | { type: 'tool_call'; call: ToolCall }
-  | { type: 'tool_result'; call: ToolCall; result: ToolResult };
+  | { type: 'tool_result'; call: ToolCall; result: ToolResult }
+  | { type: 'error'; message: string };
 
 export type ModelClient = {
   complete(messages: ChatMessage[]): Promise<string>;
+  streamComplete?(messages: ChatMessage[]): AsyncIterable<string>;
 };
