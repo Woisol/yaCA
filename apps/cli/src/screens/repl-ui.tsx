@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from '../input/registry.js';
 import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
 import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
 import { Input } from './home/action/Input.js';
+import { StatusBar } from './home/action/StatusBar.js';
 
 export type ReplRuntime = {
   cwd: string;
@@ -31,7 +32,6 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     setMessages((current) => appendChatLine(current, kind, text));
   };
 
-  const statusText = `model=${runtime.state.model} cwd=${runtime.cwd}`;
   const shortcuts = useMemo(() => createReplShortcuts(), []);
   const shortcutContext: ReplShortcutContext = {
     input,
@@ -79,9 +79,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     <Box flexDirection="column">
       <ChatArea messages={messages} />
       <Input input={input} />
-      <Box>
-        <Text color="gray">{statusText}</Text>
-      </Box>
+      <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} />
     </Box>
   );
 }
