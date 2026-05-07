@@ -36,17 +36,17 @@ export class OpenAICompatibleClient implements ModelClient {
   }
 }
 
-export class EchoModelClient implements ModelClient {
+export class FailureModelClient implements ModelClient {
   async complete(messages: ChatMessage[]): Promise<string> {
-    const last = [...messages].reverse().find((message) => message.role === 'user');
-    const content = typeof last?.content === 'string' ? last.content : JSON.stringify(last?.content ?? '');
-    return `Echo: ${content}`;
+    // const last = [...messages].reverse().find((message) => message.role === 'user');
+    // const content = typeof last?.content === 'string' ? last.content : JSON.stringify(last?.content ?? '');
+    return `Request Error: Base URL not configured.`;
   }
 }
 
 export function createModelClient(options: { baseUrl?: string; model?: string; apiKey?: string }): ModelClient {
   if (!options.baseUrl) {
-    return new EchoModelClient();
+    return new FailureModelClient();
   }
 
   return new OpenAICompatibleClient({

@@ -1,10 +1,12 @@
 import sxml from '@woisol-g/sxml.js';
+// import { SxmlParser } from '@woisol-g/sxml.js';
+import type { SxmlParser as YacaSxmlParser } from '@woisol-g/sxml.js';
 import type { ErrorStrategy, SxmlEvent, SxmlResult, TagHandler } from '@woisol-g/sxml.js';
 import { ToolCall } from '@yaca/types/index.js';
 
 // ？？？hyw
 const { SxmlParser } = sxml as unknown as { SxmlParser: new (config: ConstructorParameters<typeof import('@woisol-g/sxml.js').SxmlParser>[0]) => import('@woisol-g/sxml.js').SxmlParser };
-type YacaSxmlParser = import('@woisol-g/sxml.js').SxmlParser;
+// type YacaSxmlParser = import('@woisol-g/sxml.js').SxmlParser;
 
 export type YacaSxmlEvent =
   | { type: 'text'; content: string }
@@ -60,6 +62,7 @@ export function endAndDrain(parser: YacaSxmlParser): YacaSxmlPatch[] {
   return drain(parser);
 }
 
+// apply
 export function applySxmlPatch(events: YacaSxmlEvent[], patch: YacaSxmlPatch): void {
   if (patch.update === null) {
     events.pop();

@@ -91,6 +91,7 @@ export async function handleBuiltinCommand(input: string, state: CliState, store
   return builtinCommands.find((item) => item.name === command)?.handle(value, state, store);
 }
 
+// 改成固定一个而非多个 model
 function upsertModelBaseUrl(models: YacaConfig['models'], name: string, baseUrl: string): YacaConfig['models'] {
   const existing = models.find((model) => model.name === name);
   if (existing) {
