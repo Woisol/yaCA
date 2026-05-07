@@ -4,12 +4,7 @@ import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, ty
 import { AgentEvent, type ChatMessage as StoredChatMessage, type MessagePart } from '@yaca/types';
 import { useKeyboardShortcuts } from '../input/registry.js';
 import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
-
-type ChatMessage = {
-  id: number;
-  kind: 'user' | 'assistant' | 'tool' | 'status' | 'error';
-  text: string;
-};
+import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
 
 export type ReplRuntime = {
   cwd: string;
@@ -81,9 +76,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
 
   return (
     <Box flexDirection="column">
-      <Box flexDirection="column" marginBottom={1}>
-        {messages.map((line) => <MessageLine key={line.id} line={line} />)}
-      </Box>
+      <ChatArea messages={messages} />
       <Box borderStyle="round" paddingX={1}>
         <Text color="cyan">yaca&gt; </Text>
         <Text>{input}</Text>
@@ -96,25 +89,25 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   );
 }
 
-function MessageLine({ line }: { line: ChatMessage }) {
-  const color = line.kind === 'user'
+function MessageLine({ message }: { message: ChatMessage }) {
+  const color = message.kind === 'user'
     ? 'cyan'
-    : line.kind === 'assistant'
+    : message.kind === 'assistant'
       ? 'white'
-      : line.kind === 'tool'
+      : message.kind === 'tool'
         ? 'yellow'
-        : line.kind === 'error'
+        : message.kind === 'error'
           ? 'red'
           : 'gray';
-  const label = line.kind === 'user'
+  const label = message.kind === 'user'
     ? 'you'
-    : line.kind === 'assistant'
+    : message.kind === 'assistant'
       ? 'assistant'
-      : line.kind;
+      : message.kind;
   return (
     <Box>
       <Text color={color}>{label}: </Text>
-      <Text>{line.text}</Text>
+      <Text>{message.text}</Text>
     </Box>
   );
 }
