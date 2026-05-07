@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDefaultToolRegistry } from '@yaca/agent-tools';
 
-test('read_file reads files inside workspace', async () => {
+test('read_file reads relative files from cwd', async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
   await writeFile(path.join(workspace, 'note.txt'), 'hello');
   const tools = createDefaultToolRegistry(workspace);
@@ -13,6 +13,18 @@ test('read_file reads files inside workspace', async () => {
   const result = await tools.execute('read_file', { path: 'note.txt' });
 
   assert.deepEqual(result, { ok: true, content: 'hello' });
+});
+
+test('read_file reads absolute paths outside cwd', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  const outside = await mkdtemp(path.join(tmpdir(), 'yaca-outside-'));
+  const target = path.join(outside, 'note.txt');
+  await writeFile(target, 'outside');
+  const tools = createDefaultToolRegistry(workspace);
+
+  const result = await tools.execute('read_file', { path: target });
+
+  assert.deepEqual(result, { ok: true, content: 'outside' });
 });
 
 test('write_file refuses to overwrite unless dangerouslyOverride is true', async () => {
@@ -28,14 +40,16 @@ test('write_file refuses to overwrite unless dangerouslyOverride is true', async
   assert.equal(written, 'old');
 });
 
-test('list_directory rejects paths outside workspace', async () => {
+test('list_directory supports paths outside cwd', async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  const outside = await mkdtemp(path.join(tmpdir(), 'yaca-outside-'));
+  await writeFile(path.join(outside, 'note.txt'), 'outside');
   const tools = createDefaultToolRegistry(workspace);
 
-  const result = await tools.execute('list_directory', { path: '..' });
+  const result = await tools.execute('list_directory', { path: outside });
 
-  assert.equal(result.ok, false);
-  assert.match(result.content, /outside workspace/);
+  assert.equal(result.ok, true);
+  assert.match(result.content, /note\.txt/);
 });
 
 test('search_files finds matching text inside workspace', async () => {
@@ -93,4 +107,43 @@ test('exec_command requires explicit approval', async () => {
 
   assert.equal(result.ok, false);
   assert.match(result.content, /requires approve: true/);
+});
+
+test('cwd returns the registry cwd', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  const tools = createDefaultToolRegistry(workspace);
+
+  const result = await tools.execute('cwd', {});
+
+  assert.deepEqual(result, { ok: true, content: path.resolve(workspace) });
+});
+
+test('silent approval mode allows tool calls', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  await writeFile(path.join(workspace, 'note.txt'), 'hello');
+  const tools = createDefaultToolRegistry(workspace, { approvalMode: 'silent' });
+
+  const result = await tools.execute('read_file', { path: 'note.txt' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.content, 'hello');
+});
+
+test('confirm approval mode delegates each tool call to callback', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  await writeFile(path.join(workspace, 'note.txt'), 'hello');
+  const calls: string[] = [];
+  const tools = createDefaultToolRegistry(workspace, {
+    approvalMode: 'confirm',
+    confirm: async (request) => {
+      calls.push(request.name);
+      return request.name !== 'read_file';
+    }
+  });
+
+  const result = await tools.execute('read_file', { path: 'note.txt' });
+
+  assert.equal(result.ok, false);
+  assert.match(result.content, /denied/i);
+  assert.deepEqual(calls, ['read_file']);
 });

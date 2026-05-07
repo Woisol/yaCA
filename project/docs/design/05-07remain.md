@@ -1,14 +1,22 @@
 # 人工审查结果
 一些未实现/需要改进的功能
-1. P0 似乎没有实现流式传输。sxml.js 原生支持 chunk 输入流式解析，请支持。
-2. P0 无法设置 apiKey，加一个 /apikey <apikey> 的命令
-3. P1 /resume 尝试实现一个上下选择的功能，顺便加个 /continue 来继续上次的对话
-4. 另外健壮一下模型请求错误/解析错误的错误反馈
+1. ✅P0 似乎没有实现流式传输。sxml.js 原生支持 chunk 输入流式解析，请支持。
+2. ✅P0 无法设置 apiKey，加一个 /apikey <apikey> 的命令
+3. ✅P1 /resume 尝试实现一个上下选择的功能，顺便加个 /continue 来继续上次的对话
+4. ✅另外健壮一下模型请求错误/解析错误的错误反馈
 5. TUI 界面还是太简陋了，写精致一些。比如工具消息块考虑使用一个卡片渲染。
-6. model 不需要多个难以维护，/model 设置当前唯一 model 即可
+6. ✅model 不需要多个难以维护，/model 设置当前唯一 model 即可
 
 
 1. 输入框按下上下键显示历史用户输入
-2. /resume 似乎无法正常恢复会话。
-3. Encountered two children with the same key, `2`.
-4. 现在直接 fetch 的做法不太请求得到。用 OpenAI 库实现吧
+2. ✅/resume 似乎无法正常恢复会话。
+3. ✅Encountered two children with the same key, `2`.
+4. ✅现在直接 fetch 的做法不太请求得到。用 OpenAI 库实现吧
+
+输入好像不支持光标移动啊😨
+
+关于工具：
+1. 把现在的工具分类归纳一下收到 tools 下，用数组的形式导出，在 index.ts 中统一注册，将通用的工具函数抽到 agent-tools/src/utils/ 下
+2. 文件读写不需要限制在当前工作区，但是要支持相对路径
+3. 是否需要提供一个 cwd 命令给 llm 来查看当前工作目录？
+4. 命令的确认还没实现……
