@@ -5,6 +5,7 @@ import { AgentEvent, type ChatMessage as StoredChatMessage, type MessagePart } f
 import { useKeyboardShortcuts } from '../input/registry.js';
 import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
 import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
+import { Input } from './home/action/Input.js';
 
 export type ReplRuntime = {
   cwd: string;
@@ -77,37 +78,10 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   return (
     <Box flexDirection="column">
       <ChatArea messages={messages} />
-      <Box borderStyle="round" paddingX={1}>
-        <Text color="cyan">yaca&gt; </Text>
-        <Text>{input}</Text>
-        {busy ? <Text color="yellow">  thinking...</Text> : null}
-      </Box>
+      <Input input={input} />
       <Box>
         <Text color="gray">{statusText}</Text>
       </Box>
-    </Box>
-  );
-}
-
-function MessageLine({ message }: { message: ChatMessage }) {
-  const color = message.kind === 'user'
-    ? 'cyan'
-    : message.kind === 'assistant'
-      ? 'white'
-      : message.kind === 'tool'
-        ? 'yellow'
-        : message.kind === 'error'
-          ? 'red'
-          : 'gray';
-  const label = message.kind === 'user'
-    ? 'you'
-    : message.kind === 'assistant'
-      ? 'assistant'
-      : message.kind;
-  return (
-    <Box>
-      <Text color={color}>{label}: </Text>
-      <Text>{message.text}</Text>
     </Box>
   );
 }
