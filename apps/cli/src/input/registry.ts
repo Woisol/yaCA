@@ -1,14 +1,34 @@
-import { useInput } from "ink";
-import { exit } from "node:process";
+import { useInput, type Key } from 'ink';
 
+export type ShortcutKey = Key;
 
+export type KeyboardShortcut<TContext> = {
+  name: string;
+  when?: (context: TContext) => boolean;
+  match(input: string, key: ShortcutKey, context: TContext): boolean;
+  run(context: TContext, input: string, key: ShortcutKey): void;
+};
 
-export function useKeyboardShortcuts() {
-  useInput((value, key) => {
-    if (key.ctrl && value === 'c') {
-      console.log('Ctrl+C')
-      exit(0);
-    }
+export function dispatchShortcutInput<TContext>(
+  shortcuts: readonly KeyboardShortcut<TContext>[],
+  input: string,
+  key: ShortcutKey,
+  context: TContext
+): boolean {
+  const shortcut = shortcuts.find((item) => {
+    return (item.when?.(context) ?? true) && item.match(input, key, context);
+  });
+  if (!shortcut) return false;
+  shortcut.run(context, input, key);
+  return true;
+}
 
-  })
+// ✅ context 的做法比你传一堆变量函数进来好多了😂
+export function useKeyboardShortcuts<TContext>(
+  context: TContext,
+  shortcuts: readonly KeyboardShortcut<TContext>[]
+): void {
+  useInput((input, key) => {
+    dispatchShortcutInput(shortcuts, input, key, context);
+  });
 }

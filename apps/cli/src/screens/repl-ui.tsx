@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Box, render, Text, useApp, useInput } from 'ink';
+import { Box, render, Text, useApp } from 'ink';
 import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
 import { AgentEvent } from '@yaca/types';
 import { useKeyboardShortcuts } from '../input/registry.js';
+import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
 
 type ChatMessage = {
   id: number;
@@ -37,54 +38,28 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     setNextId((current) => current + 1);
   };
 
-  const statusText = useMemo(() => {
-    return `model=${runtime.state.model} cwd=${runtime.cwd}`;
-  }, [runtime.cwd, runtime.state.model]);
+  // 现在 React 不需要手动 memo
+  const statusText = `model=${runtime.state.model} cwd=${runtime.cwd}`;
+  // const statusText = useMemo(() => {
+  //   return `model=${runtime.state.model} cwd=${runtime.cwd}`;
+  // }, [runtime.cwd, runtime.state.model]);
 
-  useKeyboardShortcuts();
-
-  // useInput！ink 的输入 hook
-  // useInput((value, key) => {
-  //   if (busy && key.ctrl && value === 'c') {
-  //     appendLine('status', 'Interrupted current operation. The in-flight model request may still finish server-side.');
-  //     setBusy(false);
-  //     return;
-  //   }
-  //   if (busy) return;
-  //   if (key.return) {
-  //     const submitted = input.trim();
-  //     setInput('');
-  //     if (submitted.length > 0) {
-  //       void submit(submitted);
-  //     }
-  //     return;
-  //   }
-  //   if (key.escape) {
-  //     setInput('');
-  //     return;
-  //   }
-  //   if (key.ctrl && value === 'v') {
-  //     appendLine('status', 'Clipboard image paste stores images as @path references when terminal clipboard image data is available.');
-  //     return;
-  //   }
-  //   if (key.backspace || key.delete) {
-  //     setInput((current) => current.slice(0, -1));
-  //     return;
-  //   }
-  //   if (key.ctrl && value === 'c') {
-  //     const now = Date.now();
-  //     if (now - lastCtrlCAt < 800) {
-  //       exit();
-  //     } else {
-  //       setLastCtrlCAt(now);
-  //       appendLine('status', 'Press Ctrl+C again to exit.');
-  //     }
-  //     return;
-  //   }
-  //   if (value) {
-  //     setInput((current) => current + value);
-  //   }
-  // });
+  const shortcuts = useMemo(() => createReplShortcuts(), []);
+  const shortcutContext: ReplShortcutContext = {
+    input,
+    busy,
+    lastCtrlCAt,
+    now: Date.now,
+    setInput,
+    setBusy,
+    setLastCtrlCAt,
+    appendLine,
+    submit: (text) => {
+      void submit(text);
+    },
+    exit
+  };
+  useKeyboardShortcuts(shortcutContext, shortcuts);
 
   async function submit(text: string): Promise<void> {
     appendLine('user', text);

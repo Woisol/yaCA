@@ -1,5 +1,5 @@
-import { AgentLoop } from '@yaca/agent-core/agent-loop';
-import { parseUserInput } from '@yaca/agent-core/preprocess/input';
+import { AgentLoop } from '@yaca/agent-core/agent-loop.js';
+import { parseUserInput } from '@yaca/agent-core/preprocess/input.js';
 import http from 'node:http';
 
 export function startServer(options: { port: number; agent: AgentLoop; cwd: string }): http.Server {
