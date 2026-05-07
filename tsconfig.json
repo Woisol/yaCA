@@ -17,6 +17,9 @@
     ],
     "declaration": true,
     "paths": {
+      // "@yaca/cli/screens/repl-ui.js": [
+      //   "./apps/cli/src/screens/repl-ui.tsx"
+      // ],
       "@yaca/cli/*": [
         "./apps/cli/src/*"
       ],

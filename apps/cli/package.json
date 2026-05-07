@@ -1,6 +1,11 @@
 {
   "name": "@yaca/cli",
   "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./screens/repl-ui.js": "./src/screens/repl-ui.tsx"
+  },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

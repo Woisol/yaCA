@@ -4,25 +4,40 @@
   // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
+    // {
+    //   "name": "(depre)ts-node",
+    //   "type": "node",
+    //   "request": "launch",
+    //   // 默认值 internalConsole 不支持读取输入
+    //   "console": "integratedTerminal",
+    //   "skipFiles": [
+    //     "<node_internals>/**"
+    //   ],
+    //   "program": "${workspaceFolder}\\apps\\index.ts",
+    //   "runtimeArgs": [
+    //     // 能跑，但是不支持 tsconfig 的 paths……
+    //     // "--experimental-strip-types"
+    //   ],
+    //   "runtimeExecutable": "tsx",
+    //   "outFiles": [
+    //     "${workspaceFolder}/**/*.ts"
+    //   ],
+    //   "args": []
+    // },
     {
-      "name": "(depre)ts-node",
       "type": "node",
       "request": "launch",
-      // 默认值 internalConsole 不支持读取输入
-      "console": "integratedTerminal",
+      "name": "cli (tsx)",
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}\\apps\\index.ts",
-      "runtimeArgs": [
-        // 能跑，但是不支持 tsconfig 的 paths……
-        // "--experimental-strip-types"
+      "runtimeExecutable": "${workspaceFolder}\\node_modules\\.bin\\tsx.cmd",
+      "args": [
+        "${workspaceFolder}\\apps\\index.ts"
       ],
-      "runtimeExecutable": "tsx",
-      "outFiles": [
-        "${workspaceFolder}/**/*.ts"
-      ],
-      "args": []
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "cwd": "${workspaceFolder}"
     },
     {
       "type": "node",
@@ -39,6 +54,6 @@
         "${workspaceFolder}/**/*.js"
       ],
       "args": []
-    }
+    },
   ]
 }

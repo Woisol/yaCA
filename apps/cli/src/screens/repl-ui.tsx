@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Box, render, Text, useApp, useInput } from 'ink';
 import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
 import { AgentEvent } from '@yaca/types';
-import { factoryKeyboardShortcuts } from '../input/registry';
+import { useKeyboardShortcuts } from '../input/registry.js';
 
 type ChatMessage = {
   id: number;
@@ -41,7 +41,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     return `model=${runtime.state.model} cwd=${runtime.cwd}`;
   }, [runtime.cwd, runtime.state.model]);
 
-  factoryKeyboardShortcuts();
+  useKeyboardShortcuts();
 
   // useInput！ink 的输入 hook
   // useInput((value, key) => {

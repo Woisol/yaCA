@@ -1,0 +1,12 @@
+declare module '@yaca/cli/screens/repl-ui.js' {
+  import type { AgentLoop, CliState, SessionStore } from '@yaca/agent-core';
+
+  export type ReplRuntime = {
+    cwd: string;
+    state: CliState;
+    store: SessionStore;
+    createAgent(): AgentLoop;
+  };
+
+  export function startInkRepl(runtime: ReplRuntime): void;
+}
