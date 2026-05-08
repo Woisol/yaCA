@@ -6,11 +6,16 @@ type MessageKind = 'user' | 'assistant' | 'tool' | 'status' | 'error';
 export type ReplShortcutContext = {
   input: string;
   busy: boolean;
+  userMessages: string[];
+  userMessageHistoryIndex: number | null;
+  userMessageDraft: string;
   lastCtrlCAt: number;
   lastEscapeAt: number;
   now(): number;
   setInput: Dispatch<SetStateAction<string>>;
   setBusy: Dispatch<SetStateAction<boolean>>;
+  setUserMessageHistoryIndex: Dispatch<SetStateAction<number | null>>;
+  setUserMessageDraft: Dispatch<SetStateAction<string>>;
   setLastCtrlCAt: Dispatch<SetStateAction<number>>;
   setLastEscapeAt: Dispatch<SetStateAction<number>>;
   appendLine(kind: MessageKind, text: string): void;
@@ -51,9 +56,42 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       run: (context) => {
         const submitted = context.input.trim();
         context.setInput('');
+        context.setUserMessageHistoryIndex(null);
+        context.setUserMessageDraft('');
         if (submitted.length > 0) {
           context.submit(submitted);
         }
+      }
+    },
+    {
+      name: 'previous-user-message',
+      match: (_input, key) => key.upArrow,
+      run: (context) => {
+        if (context.userMessages.length === 0) return;
+        const nextIndex = context.userMessageHistoryIndex === null
+          ? context.userMessages.length - 1
+          : Math.max(0, context.userMessageHistoryIndex - 1);
+        if (context.userMessageHistoryIndex === null) {
+          context.setUserMessageDraft(context.input);
+        }
+        context.setUserMessageHistoryIndex(nextIndex);
+        context.setInput(context.userMessages[nextIndex] ?? '');
+      }
+    },
+    {
+      name: 'next-user-message',
+      match: (_input, key) => key.downArrow,
+      run: (context) => {
+        if (context.userMessageHistoryIndex === null) return;
+        const nextIndex = context.userMessageHistoryIndex + 1;
+        if (nextIndex >= context.userMessages.length) {
+          context.setUserMessageHistoryIndex(null);
+          context.setInput(context.userMessageDraft);
+          context.setUserMessageDraft('');
+          return;
+        }
+        context.setUserMessageHistoryIndex(nextIndex);
+        context.setInput(context.userMessages[nextIndex] ?? '');
       }
     },
     {
@@ -67,6 +105,8 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
         } else {
           context.setLastEscapeAt(currentTime);
           context.setInput('');
+          context.setUserMessageHistoryIndex(null);
+          context.setUserMessageDraft('');
         }
       }
     },
@@ -82,6 +122,7 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       match: (_input, key) => key.backspace || key.delete,
       run: (context) => {
         context.setInput((current) => current.slice(0, -1));
+        context.setUserMessageHistoryIndex(null);
       }
     },
     {
@@ -102,6 +143,7 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       match: (input) => input.length > 0,
       run: (context, input) => {
         context.setInput((current) => current + input);
+        context.setUserMessageHistoryIndex(null);
       }
     }
   ];

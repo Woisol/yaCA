@@ -50,3 +50,7 @@ export function applyRewindSelection(current: ChatMessage[], selectedIndex: numb
     storedMessages: chatMessagesToStored(messages)
   };
 }
+
+export function applyRewindInput(currentInput: string, rewindInput: string): string {
+  return currentInput.length === 0 ? rewindInput : currentInput;
+}

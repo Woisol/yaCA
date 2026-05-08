@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
+import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindInput, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
 
 // 现在不再在消息数据中附带 id
 // test('appendChatLine assigns unique ids for consecutive appends', () => {
@@ -173,4 +173,9 @@ test('applyRewindSelection ignores non-user selected messages', () => {
       { role: 'assistant', content: 'answer' }
     ]
   });
+});
+
+test('applyRewindInput only restores rewind text when current input is empty', () => {
+  assert.equal(applyRewindInput('', 'rewound message'), 'rewound message');
+  assert.equal(applyRewindInput('draft', 'rewound message'), 'draft');
 });

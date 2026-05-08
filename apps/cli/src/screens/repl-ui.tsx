@@ -21,6 +21,7 @@ import {
   renderSessionMessages,
   appendStoredToolMessage,
   applyRewindSelection,
+  applyRewindInput,
   createStoredAgentEventMessage,
   formatError,
   runAgentTurn,
@@ -39,6 +40,7 @@ export {
   setToolOutputExpanded,
   renderSessionMessages,
   applyRewindSelection,
+  applyRewindInput,
   createStoredAgentEventMessage,
 } from '../api/index.js';
 export type { ChatMessage } from '../api/message-utils.js';
@@ -61,12 +63,20 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [showToolOutput, setShowToolOutput] = useState(false);
   const [lastCtrlCAt, setLastCtrlCAt] = useState(0);
   const [lastEscapeAt, setLastEscapeAt] = useState(0);
+  const [userMessageHistoryIndex, setUserMessageHistoryIndex] = useState<number | null>(null);
+  const [userMessageDraft, setUserMessageDraft] = useState('');
   const [showRewind, setShowRewind] = useState(false);
   const [showResume, setShowResume] = useState(false);
   const [resumeSessions, setResumeSessions] = useState<SessionMeta[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
   ]);
+  const userMessages = useMemo(() => {
+    return messages
+      .filter((msg) => msg.kind === 'user')
+      .map((msg) => msg.text)
+      .filter((text): text is string => typeof text === 'string' && text.length > 0);
+  }, [messages]);
 
   const appendLine = (kind: string, text: string) => {
     setMessages((current) => appendChatLine(current, kind as ChatMessage['kind'], text));
@@ -76,11 +86,16 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const shortcutContext: ReplShortcutContext = {
     input,
     busy,
+    userMessages,
+    userMessageHistoryIndex,
+    userMessageDraft,
     lastCtrlCAt,
     lastEscapeAt,
     now: Date.now,
     setInput,
     setBusy,
+    setUserMessageHistoryIndex,
+    setUserMessageDraft,
     setLastCtrlCAt,
     setLastEscapeAt,
     appendLine,
@@ -164,7 +179,9 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   async function handleRewind(selectedIndex: number): Promise<void> {
     const result = applyRewindSelection(messages, selectedIndex);
     setMessages(result.messages);
-    setInput(result.input);
+    setInput((current) => applyRewindInput(current, result.input));
+    setUserMessageHistoryIndex(null);
+    setUserMessageDraft('');
     setShowRewind(false);
     if (runtime.state.sessionId) {
       await runtime.store.replaceMessages(runtime.state.sessionId, result.storedMessages);
@@ -196,4 +213,3 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     </Box>
   );
 }
-

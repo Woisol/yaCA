@@ -169,6 +169,26 @@ test('createReplShortcuts opens rewind on double escape', () => {
   assert.equal(rewindOpened, true);
 });
 
+test('createReplShortcuts navigates user message history with up and down arrows', () => {
+  const context = createContext({
+    input: 'draft',
+    userMessages: ['first', 'second']
+  });
+  const shortcuts = createReplShortcuts();
+
+  dispatchShortcutInput(shortcuts, '', key({ upArrow: true }), context);
+  assert.equal(context.input, 'second');
+
+  dispatchShortcutInput(shortcuts, '', key({ upArrow: true }), context);
+  assert.equal(context.input, 'first');
+
+  dispatchShortcutInput(shortcuts, '', key({ downArrow: true }), context);
+  assert.equal(context.input, 'second');
+
+  dispatchShortcutInput(shortcuts, '', key({ downArrow: true }), context);
+  assert.equal(context.input, 'draft');
+});
+
 type TestReplContext = ReplShortcutContext & {
   exited: boolean;
   messages: string[];
@@ -178,6 +198,9 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
   const context: TestReplContext = {
     input: overrides.input ?? '',
     busy: overrides.busy ?? false,
+    userMessages: overrides.userMessages ?? [],
+    userMessageHistoryIndex: overrides.userMessageHistoryIndex ?? null,
+    userMessageDraft: overrides.userMessageDraft ?? '',
     lastCtrlCAt: overrides.lastCtrlCAt ?? 0,
     lastEscapeAt: overrides.lastEscapeAt ?? 0,
     now: overrides.now ?? (() => 0),
@@ -188,6 +211,12 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
     },
     setBusy(value) {
       context.busy = typeof value === 'function' ? value(context.busy) : value;
+    },
+    setUserMessageHistoryIndex(value) {
+      context.userMessageHistoryIndex = typeof value === 'function' ? value(context.userMessageHistoryIndex) : value;
+    },
+    setUserMessageDraft(value) {
+      context.userMessageDraft = typeof value === 'function' ? value(context.userMessageDraft) : value;
     },
     setLastCtrlCAt(value) {
       context.lastCtrlCAt = typeof value === 'function' ? value(context.lastCtrlCAt) : value;
