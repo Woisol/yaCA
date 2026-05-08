@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { pathToFileURL } from 'node:url';
-import { stdout as output } from 'node:process';
+import { loadEnvFile, stdout as output } from 'node:process';
 import { AgentLoop, ConfigStore, createModelClient, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
 import { createDefaultToolRegistry } from '@yaca/agent-tools';
 import { startServer } from '@yaca/web/server.js';
@@ -14,6 +14,8 @@ type CliArgs = {
 };
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  loadEnvFile();
+
   const args = parseArgs(argv);
   const configStore = new ConfigStore();
   const config = await configStore.load();

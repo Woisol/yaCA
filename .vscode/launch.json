@@ -53,7 +53,10 @@
       "outFiles": [
         "${workspaceFolder}/**/*.js"
       ],
-      "args": []
+      "args": [],
+      "env": {
+        "DEBUG": "true"
+      }
     },
   ]
 }
