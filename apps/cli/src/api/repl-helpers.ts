@@ -3,6 +3,7 @@ import type { AgentEvent, ChatMessage as StoredChatMessage } from '@yaca/types';
 import type { ChatMessage } from './message-utils.js';
 import { applyAssistantEventPatch, applyToolCall, applyToolResult } from './chat-operations.js';
 import { createStoredAgentEventMessage, appendAgentEvent } from './agent-events.js';
+import { storedChatMessageToModelMessage } from './message-utils.js';
 
 export function isSessionSwitchCommand(text: string): boolean {
   const command = text.trim().split(/\s+/)[0];
@@ -26,7 +27,10 @@ export async function runAgentTurn(
   const content = await parseUserInput(text, runtime.cwd);
   await runtime.store.appendMessage(runtime.state.sessionId, { role: 'user', content });
   const assistantEvents: YacaSxmlEvent[] = [];
-  for await (const event of runtime.createAgent().runStream(await runtime.store.readMessages(runtime.state.sessionId))) {
+  const storedHistory = await runtime.store.readMessages(runtime.state.sessionId);
+  const initialMessages = storedHistory.map(storedChatMessageToModelMessage);
+
+  for await (const event of runtime.createAgent().runStream(initialMessages)) {
     if (event.type === 'assistant_delta') {
       continue;
     } else if (event.type === 'assistant_replace') {
