@@ -21,7 +21,6 @@ import {
   renderSessionMessages,
   appendStoredToolMessage,
   applyRewindSelection,
-  applyRewindInput,
   createStoredAgentEventMessage,
   formatError,
   runAgentTurn,
@@ -40,7 +39,6 @@ export {
   setToolOutputExpanded,
   renderSessionMessages,
   applyRewindSelection,
-  applyRewindInput,
   createStoredAgentEventMessage,
 } from '../api/index.js';
 export type { ChatMessage } from '../api/message-utils.js';
@@ -91,6 +89,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     userMessageDraft,
     lastCtrlCAt,
     lastEscapeAt,
+    shortcutsEnabled: !(showRewind || showResume),
     now: Date.now,
     setInput,
     setBusy,
@@ -179,9 +178,10 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   async function handleRewind(selectedIndex: number): Promise<void> {
     const result = applyRewindSelection(messages, selectedIndex);
     setMessages(result.messages);
-    setInput((current) => applyRewindInput(current, result.input));
     setUserMessageHistoryIndex(null);
     setUserMessageDraft('');
+    setInput((current) => current || result.input);
+    // setInput("abc");
     setShowRewind(false);
     if (runtime.state.sessionId) {
       await runtime.store.replaceMessages(runtime.state.sessionId, result.storedMessages);

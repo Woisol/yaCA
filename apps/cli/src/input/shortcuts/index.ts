@@ -18,6 +18,7 @@ export type ReplShortcutContext = {
   setUserMessageDraft: Dispatch<SetStateAction<string>>;
   setLastCtrlCAt: Dispatch<SetStateAction<number>>;
   setLastEscapeAt: Dispatch<SetStateAction<number>>;
+  shortcutsEnabled?: boolean;
   appendLine(kind: MessageKind, text: string): void;
   toggleToolOutput(): void;
   openRewind(): void;

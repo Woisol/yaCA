@@ -29,6 +29,8 @@ export function useKeyboardShortcuts<TContext>(
   shortcuts: readonly KeyboardShortcut<TContext>[]
 ): void {
   useInput((input, key) => {
+    // allow callers to disable global shortcuts (e.g. when a modal like Rewind is open)
+    if ((context as unknown as { shortcutsEnabled?: boolean }).shortcutsEnabled === false) return;
     dispatchShortcutInput(shortcuts, input, key, context);
   });
 }
