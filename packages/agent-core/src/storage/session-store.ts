@@ -88,6 +88,19 @@ export class SessionStore {
       .map((line) => JSON.parse(line) as ChatMessage);
   }
 
+  async replaceMessages(id: string, messages: ChatMessage[]): Promise<void> {
+    const session = await this.requireSession(id);
+    await mkdir(this.sessionDirectory(id), { recursive: true });
+    const content = messages.map((message) => JSON.stringify(message)).join('\n');
+    await atomicWrite(this.messagesPath(id), content ? `${content}\n` : '');
+    await this.updateSession({
+      ...session,
+      updated_at: new Date().toISOString(),
+      message_count: messages.length,
+      total_tokens: messages.reduce((total, message) => total + estimateTokens(message), 0)
+    });
+  }
+
   private async requireSession(id: string): Promise<SessionMeta> {
     const session = await this.getSession(id);
     if (!session) {

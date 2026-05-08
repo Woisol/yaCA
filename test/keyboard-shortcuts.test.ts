@@ -151,6 +151,24 @@ test('createReplShortcuts toggles tool output on ctrl+o', () => {
   assert.equal(toggled, true);
 });
 
+test('createReplShortcuts opens rewind on double escape', () => {
+  let rewindOpened = false;
+  const context = createContext({
+    now: () => 1000,
+    openRewind() {
+      rewindOpened = true;
+    }
+  });
+  const shortcuts = createReplShortcuts();
+
+  dispatchShortcutInput(shortcuts, '', key({ escape: true }), context);
+  context.now = () => 1300;
+  const handled = dispatchShortcutInput(shortcuts, '', key({ escape: true }), context);
+
+  assert.equal(handled, true);
+  assert.equal(rewindOpened, true);
+});
+
 type TestReplContext = ReplShortcutContext & {
   exited: boolean;
   messages: string[];
@@ -161,6 +179,7 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
     input: overrides.input ?? '',
     busy: overrides.busy ?? false,
     lastCtrlCAt: overrides.lastCtrlCAt ?? 0,
+    lastEscapeAt: overrides.lastEscapeAt ?? 0,
     now: overrides.now ?? (() => 0),
     exited: false,
     messages: [],
@@ -173,6 +192,9 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
     setLastCtrlCAt(value) {
       context.lastCtrlCAt = typeof value === 'function' ? value(context.lastCtrlCAt) : value;
     },
+    setLastEscapeAt(value) {
+      context.lastEscapeAt = typeof value === 'function' ? value(context.lastEscapeAt) : value;
+    },
     appendLine(kind, text) {
       assert.equal(kind, 'status');
       context.messages.push(text);
@@ -181,6 +203,8 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
       context.exited = true;
     },
     toggleToolOutput() {},
+    openRewind() {},
+    openResume() {},
     submit() {},
     ...overrides
   };

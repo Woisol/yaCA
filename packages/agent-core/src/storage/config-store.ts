@@ -17,7 +17,7 @@ type LegacyYacaConfig = Partial<YacaConfig> & {
 
 const defaultModel = 'qwen2.5-vl-7b';
 const defaultBaseUrl = 'http://127.0.0.1:11434/v1';
-const defaultPostponeToolCallsSeconds = 1;
+const defaultPostponeToolCallsSeconds = 2;
 
 const defaultConfig: YacaConfig = {
   model: defaultModel,

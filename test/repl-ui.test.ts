@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyToolResult, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
+import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
 
 // 现在不再在消息数据中附带 id
 // test('appendChatLine assigns unique ids for consecutive appends', () => {
@@ -22,6 +22,23 @@ test('renderSessionMessages converts resumed session history into chat lines', (
     { kind: 'assistant', text: 'hi' },
     { kind: 'tool', text: '{"tool":"read_file","result":{"ok":true,"content":"done"}}' }
   ]);
+});
+
+test('renderSessionMessages rebuilds persisted tool call cards with results', () => {
+  const lines = renderSessionMessages([
+    { role: 'tool', content: '{"type":"tool_call","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}}}' },
+    { role: 'tool', content: '{"type":"tool_result","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}},"result":{"ok":true,"content":"done"}}' }
+  ]);
+
+  assert.deepEqual(lines, [{
+    kind: 'tool',
+    callId: 'call-1',
+    toolName: 'read_file',
+    args: { path: 'a.txt' },
+    status: 'success',
+    result: 'done',
+    expanded: false
+  }]);
 });
 
 test('renderSessionMessages renders a single text part as plain text', () => {
@@ -91,4 +108,69 @@ test('applyToolResult expands matching tool result when tool output is enabled',
   assert.equal(updated[0]?.kind, 'tool');
   assert.equal(updated[0]?.expanded, true);
   assert.equal(updated[0]?.status, 'error');
+});
+
+test('createStoredAgentEventMessage persists tool calls, tool results, and errors', () => {
+  assert.deepEqual(createStoredAgentEventMessage({
+    type: 'tool_call',
+    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }
+  }), {
+    role: 'tool',
+    content: '{"type":"tool_call","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}}}'
+  });
+
+  assert.deepEqual(createStoredAgentEventMessage({
+    type: 'tool_result',
+    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
+    result: { ok: false, content: 'missing' }
+  }), {
+    role: 'tool',
+    content: '{"type":"tool_result","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}},"result":{"ok":false,"content":"missing"}}'
+  });
+
+  assert.deepEqual(createStoredAgentEventMessage({ type: 'error', message: 'model failed' }), {
+    role: 'tool',
+    content: '{"type":"error","message":"model failed"}'
+  });
+});
+
+test('applyRewindSelection trims to before selected user message and restores it to input', () => {
+  const current = [
+    { kind: 'user' as const, text: 'first' },
+    { kind: 'assistant' as const, text: 'answer' },
+    { kind: 'user' as const, text: 'second' },
+    { kind: 'assistant' as const, text: 'later' }
+  ];
+
+  const result = applyRewindSelection(current, 2);
+
+  assert.deepEqual(result, {
+    messages: [
+      { kind: 'user', text: 'first' },
+      { kind: 'assistant', text: 'answer' }
+    ],
+    input: 'second',
+    storedMessages: [
+      { role: 'user', content: 'first' },
+      { role: 'assistant', content: 'answer' }
+    ]
+  });
+});
+
+test('applyRewindSelection ignores non-user selected messages', () => {
+  const current = [
+    { kind: 'user' as const, text: 'first' },
+    { kind: 'assistant' as const, text: 'answer' }
+  ];
+
+  const result = applyRewindSelection(current, 1);
+
+  assert.deepEqual(result, {
+    messages: current,
+    input: '',
+    storedMessages: [
+      { role: 'user', content: 'first' },
+      { role: 'assistant', content: 'answer' }
+    ]
+  });
 });

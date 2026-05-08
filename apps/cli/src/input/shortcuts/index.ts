@@ -7,12 +7,16 @@ export type ReplShortcutContext = {
   input: string;
   busy: boolean;
   lastCtrlCAt: number;
+  lastEscapeAt: number;
   now(): number;
   setInput: Dispatch<SetStateAction<string>>;
   setBusy: Dispatch<SetStateAction<boolean>>;
   setLastCtrlCAt: Dispatch<SetStateAction<number>>;
+  setLastEscapeAt: Dispatch<SetStateAction<number>>;
   appendLine(kind: MessageKind, text: string): void;
   toggleToolOutput(): void;
+  openRewind(): void;
+  openResume(): void;
   submit(text: string): void;
   exit(): void;
 };
@@ -56,7 +60,14 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       name: 'clear-input',
       match: (_input, key) => key.escape,
       run: (context) => {
-        context.setInput('');
+        const currentTime = context.now();
+        if (currentTime - context.lastEscapeAt < 800) {
+          context.openRewind();
+          context.setLastEscapeAt(0);
+        } else {
+          context.setLastEscapeAt(currentTime);
+          context.setInput('');
+        }
       }
     },
     {

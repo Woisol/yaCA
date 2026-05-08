@@ -34,3 +34,23 @@ test('SessionStore resumes an existing session by id', async () => {
   assert.equal(resumed.id, session.id);
   assert.equal(resumed.message_count, 1);
 });
+
+test('SessionStore rewrites messages when rewinding a session', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-store-'));
+  const workspace = path.join(home, 'workspace');
+  const store = new SessionStore({ homeDirectory: home, workspace });
+  const session = await store.createSession('Rewind me');
+  await store.appendMessage(session.id, { role: 'user', content: 'first' });
+  await store.appendMessage(session.id, { role: 'assistant', content: 'answer' });
+  await store.appendMessage(session.id, { role: 'user', content: 'second' });
+
+  await store.replaceMessages(session.id, [
+    { role: 'user', content: 'first' },
+    { role: 'assistant', content: 'answer' }
+  ]);
+
+  const messages = await store.readMessages(session.id);
+  const updated = await store.resumeSession(session.id);
+  assert.deepEqual(messages.map((message) => message.content), ['first', 'answer']);
+  assert.equal(updated.message_count, 2);
+});
