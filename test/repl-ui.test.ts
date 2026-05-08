@@ -26,8 +26,8 @@ test('renderSessionMessages converts resumed session history into chat lines', (
 
 test('renderSessionMessages rebuilds persisted tool call cards with results', () => {
   const lines = renderSessionMessages([
-    { role: 'tool', content: '{"type":"tool_call","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}}}' },
-    { role: 'tool', content: '{"type":"tool_result","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}},"result":{"ok":true,"content":"done"}}' }
+    { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } } } },
+    { role: 'tool', content: { type: 'tool_result', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }, result: { ok: true, content: 'done' } } }
   ]);
 
   assert.deepEqual(lines, [{
@@ -116,7 +116,7 @@ test('createStoredAgentEventMessage persists tool calls, tool results, and error
     call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }
   }), {
     role: 'tool',
-    content: '{"type":"tool_call","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}}}'
+    content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } } }
   });
 
   assert.deepEqual(createStoredAgentEventMessage({
@@ -125,13 +125,27 @@ test('createStoredAgentEventMessage persists tool calls, tool results, and error
     result: { ok: false, content: 'missing' }
   }), {
     role: 'tool',
-    content: '{"type":"tool_result","call":{"call_id":"call-1","name":"read_file","args":{"path":"a.txt"}},"result":{"ok":false,"content":"missing"}}'
+    content: {
+      type: 'tool_result',
+      call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
+      result: { ok: false, content: 'missing' }
+    }
   });
 
   assert.deepEqual(createStoredAgentEventMessage({ type: 'error', message: 'model failed' }), {
     role: 'tool',
-    content: '{"type":"error","message":"model failed"}'
+    content: { type: 'error', message: 'model failed' }
   });
+});
+
+test('appendAssistantEvent ignores parse errors because synthetic tool events render the card', () => {
+  const lines = appendAssistantEvent([], {
+    type: 'parse_error',
+    message: 'Failed to parse assistant tool call',
+    content: '{"path":'
+  });
+
+  assert.deepEqual(lines, []);
 });
 
 test('applyRewindSelection trims to before selected user message and restores it to input', () => {

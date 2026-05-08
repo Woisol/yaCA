@@ -1,14 +1,14 @@
-import type { AgentEvent } from '@yaca/types';
+import type { AgentEvent, ChatMessage, ToolEventContent } from '@yaca/types';
 
-export function createStoredAgentEventMessage(event: AgentEvent): { role: 'tool'; content: string } | undefined {
+export function createStoredAgentEventMessage(event: AgentEvent): { role: 'tool'; content: ToolEventContent } | undefined {
   if (event.type === 'tool_call') {
-    return { role: 'tool', content: JSON.stringify({ type: event.type, call: event.call }) };
+    return { role: 'tool', content: { type: event.type, call: event.call } };
   }
   if (event.type === 'tool_result') {
-    return { role: 'tool', content: JSON.stringify({ type: event.type, call: event.call, result: event.result }) };
+    return { role: 'tool', content: { type: event.type, call: event.call, result: event.result } };
   }
   if (event.type === 'error') {
-    return { role: 'tool', content: JSON.stringify({ type: event.type, message: event.message }) };
+    return { role: 'tool', content: { type: event.type, message: event.message } };
   }
   return undefined;
 }
@@ -31,15 +31,23 @@ export function appendAgentEvent(event: AgentEvent, appendLine: (kind: string, t
   }
 }
 
-export function parseStoredAgentEvent(content: string): Extract<AgentEvent, { type: 'tool_call' | 'tool_result' | 'error' }> | undefined {
+export function parseStoredAgentEvent(content: ChatMessage['content']): Extract<AgentEvent, { type: 'tool_call' | 'tool_result' | 'error' }> | undefined {
+  if (isStoredAgentEvent(content)) {
+    return content;
+  }
+  if (typeof content !== 'string') {
+    return undefined;
+  }
   try {
     const value = JSON.parse(content) as unknown;
-    if (!value || typeof value !== 'object') return undefined;
-    const event = value as Partial<Extract<AgentEvent, { type: 'tool_call' | 'tool_result' | 'error' }>>;
-    return event.type === 'tool_call' || event.type === 'tool_result' || event.type === 'error'
-      ? (event as Extract<AgentEvent, { type: 'tool_call' | 'tool_result' | 'error' }>)
-      : undefined;
+    return isStoredAgentEvent(value) ? value : undefined;
   } catch {
     return undefined;
   }
+}
+
+function isStoredAgentEvent(value: unknown): value is Extract<AgentEvent, { type: 'tool_call' | 'tool_result' | 'error' }> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const event = value as Partial<Extract<AgentEvent, { type: 'tool_call' | 'tool_result' | 'error' }>>;
+  return event.type === 'tool_call' || event.type === 'tool_result' || event.type === 'error';
 }

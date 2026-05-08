@@ -16,7 +16,7 @@ export type MessagePart = TextPart | ImageUrlPart;
 
 export type ChatMessage = {
   role: MessageRole;
-  content: string | MessagePart[];
+  content: string | MessagePart[] | ToolEventContent;
 };
 
 export type ToolCall = {
@@ -29,6 +29,11 @@ export type ToolResult = {
   ok: boolean;
   content: string;
 };
+
+export type ToolEventContent =
+  | { type: 'tool_call'; call: ToolCall }
+  | { type: 'tool_result'; call: ToolCall; result: ToolResult }
+  | { type: 'error'; message: string };
 
 export type ToolDefinition = {
   name: string;

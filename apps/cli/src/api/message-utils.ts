@@ -2,7 +2,8 @@ import type { ChatMessage as StoredChatMessage, MessagePart } from '@yaca/types'
 
 export function formatStoredMessageContent(content: StoredChatMessage['content']): string {
   if (typeof content === 'string') return content;
-  return content.map(formatMessagePart).join('');
+  if (Array.isArray(content)) return content.map(formatMessagePart).join('');
+  return JSON.stringify(content);
 }
 
 export function formatMessagePart(part: MessagePart): string {
@@ -20,21 +21,21 @@ export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage
     }
     if (message.kind === 'tool' && message.callId && message.toolName) {
       const call = { call_id: message.callId, name: message.toolName, args: message.args ?? {} };
-      const stored: StoredChatMessage[] = [{ role: 'tool', content: JSON.stringify({ type: 'tool_call', call }) }];
+      const stored: StoredChatMessage[] = [{ role: 'tool', content: { type: 'tool_call', call } }];
       if (message.result !== undefined) {
         stored.push({
           role: 'tool',
-          content: JSON.stringify({
+          content: {
             type: 'tool_result',
             call,
             result: { ok: message.status !== 'error', content: message.result }
-          })
+          }
         });
       }
       return stored;
     }
     if (message.kind === 'error') {
-      return [{ role: 'tool', content: JSON.stringify({ type: 'error', message: message.text ?? '' }) }];
+      return [{ role: 'tool', content: { type: 'error', message: message.text ?? '' } }];
     }
     return [];
   });

@@ -18,10 +18,9 @@ export function renderSessionMessages(history: StoredChatMessage[]): ChatMessage
 }
 
 export function appendStoredToolMessage(lines: ChatMessage[], content: StoredChatMessage['content']): ChatMessage[] {
-  const text = formatStoredMessageContent(content);
-  const event = parseStoredAgentEvent(text);
+  const event = parseStoredAgentEvent(content);
   if (!event) {
-    return [...lines, { kind: 'tool' as const, text }];
+    return [...lines, { kind: 'tool' as const, text: formatStoredMessageContent(content) }];
   }
   if (event.type === 'tool_call') {
     return appendAssistantEvent(lines, {

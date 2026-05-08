@@ -1,7 +1,7 @@
 import { applySxmlPatch, collectAssistantText, parseUserInput, type AgentLoop, type CliState, type SessionStore, type YacaSxmlEvent } from '@yaca/agent-core';
 import type { AgentEvent, ChatMessage as StoredChatMessage } from '@yaca/types';
 import type { ChatMessage } from './message-utils.js';
-import { applyAssistantEventPatch, applyToolResult } from './chat-operations.js';
+import { applyAssistantEventPatch, applyToolCall, applyToolResult } from './chat-operations.js';
 import { createStoredAgentEventMessage, appendAgentEvent } from './agent-events.js';
 
 export function isSessionSwitchCommand(text: string): boolean {
@@ -36,6 +36,7 @@ export async function runAgentTurn(
       setMessages((current) => applyAssistantEventPatch(current, event.patch));
     } else if (event.type === 'tool_call') {
       await appendStoredAgentEvent(runtime, event);
+      setMessages((current) => applyToolCall(current, event));
     } else if (event.type === 'tool_result') {
       await appendStoredAgentEvent(runtime, event);
       setMessages((current) => applyToolResult(current, event, showToolOutput));

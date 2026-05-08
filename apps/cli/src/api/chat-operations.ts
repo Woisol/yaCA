@@ -1,4 +1,4 @@
-import type { AssistantEvent, AssistantEventPatch, AgentEvent } from '@yaca/types';
+import type { AssistantEvent, AssistantEventPatch, AgentEvent, ToolCall } from '@yaca/types';
 import type { ChatMessage } from './message-utils.js';
 
 export function appendChatLine(current: ChatMessage[], kind: ChatMessage['kind'], text: string): ChatMessage[] {
@@ -20,7 +20,7 @@ export function appendAssistantEvent(current: ChatMessage[], event: AssistantEve
     }];
   }
   if (event.type === 'parse_error') {
-    return appendChatLine(current, 'error', event.message);
+    return current;
   }
   return current;
 }
@@ -54,7 +54,18 @@ export function applyAssistantEventPatch(current: ChatMessage[], patch: Assistan
   return next;
 }
 
+export function applyToolCall(current: ChatMessage[], event: Extract<AgentEvent, { type: 'tool_call' }>): ChatMessage[] {
+  if (current.some((message) => message.kind === 'tool' && message.callId === event.call.call_id)) {
+    return current;
+  }
+  return appendToolCall(current, event.call);
+}
+
 export function applyToolResult(current: ChatMessage[], event: Extract<AgentEvent, { type: 'tool_result' }>, expanded: boolean): ChatMessage[] {
+  const hasMatchingCall = current.some((message) => message.kind === 'tool' && message.callId === event.call.call_id);
+  if (!hasMatchingCall) {
+    return applyToolResult(appendToolCall(current, event.call), event, expanded);
+  }
   return current.map((message) => {
     if (message.kind !== 'tool' || message.callId !== event.call.call_id) {
       return message;
@@ -77,4 +88,15 @@ function replaceLastAssistantEvent(current: ChatMessage[], event: AssistantEvent
     return replaceAssistantText(current, event.content);
   }
   return [...current.slice(0, -1), ...appendAssistantEvent([], event)];
+}
+
+function appendToolCall(current: ChatMessage[], call: ToolCall): ChatMessage[] {
+  return [...current, {
+    kind: 'tool' as const,
+    callId: call.call_id ?? '',
+    toolName: call.name,
+    args: call.args,
+    status: 'running' as const,
+    expanded: false
+  }];
 }
