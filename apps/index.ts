@@ -74,7 +74,7 @@ async function runOne(inputText: string, state: CliState, store: SessionStore, a
     } else if (event.type === 'tool_call') {
       output.write(`tool ${event.call.name} ${JSON.stringify(event.call.args)}\n`);
     } else if (event.type === 'tool_result') {
-      output.write(`${event.result.ok ? 'ok' : 'error'} ${event.call.name}: ${event.result.content}\n`);
+      output.write(`${event.result.ok ? 'ok' : 'error'} ${event.call_id ?? ''}: ${event.result.content}\n`);
     } else {
       output.write(`Error: ${event.message}\n`);
     }

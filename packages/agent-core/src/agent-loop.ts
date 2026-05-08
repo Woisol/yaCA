@@ -1,5 +1,6 @@
 import type { AgentEvent, AssistantEvent, ChatMessage, ModelClient, ToolCall, ToolResult } from '@yaca/types';
 import { applySxmlPatch, collectAssistantText, createYacaSxmlParser, endAndDrain, writeAndDrain, type YacaSxmlEvent, type YacaSxmlPatch } from './parser/sxml-adapter.js';
+import { Logger } from '@yaca/utils/logger.js';
 
 type ToolExecutor = {
   execute(name: string, args: Record<string, unknown>): Promise<ToolResult>;
@@ -8,14 +9,19 @@ type ToolExecutor = {
 
 type StreamTurnResult = {
   response: string;
-  calls: ToolCall[];
+  calls: PendingToolCall[];
   parseFailures: ToolFailureCall[];
   stopped: boolean;
+};
+
+type PendingToolCall = ToolCall & {
+  rawResponse: string;
 };
 
 type ToolFailureCall = {
   call: ToolCall;
   result: ToolResult;
+  rawResponse: string;
 };
 
 export class AgentLoop {
@@ -24,6 +30,7 @@ export class AgentLoop {
   private readonly tools: ToolExecutor;
   private readonly maxTurns: number;
   private readonly postponeToolCalls: number;
+  private readonly logger = new Logger('AgentLoop');
 
   constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; postponeToolCalls: number }) {
     this.model = options.model;
@@ -65,15 +72,16 @@ export class AgentLoop {
       if (turnResult.calls.length === 0 && turnResult.parseFailures.length === 0) break;
 
       for (const failure of turnResult.parseFailures) {
-        yield { type: 'tool_call', call: failure.call };
-        yield { type: 'tool_result', call: failure.call, result: failure.result };
-        messages.push({ role: 'tool', content: JSON.stringify({ tool: failure.call.name, result: failure.result }) });
+        yield { type: 'tool_call', call: failure.call, rawResponse: failure.rawResponse };
+        yield { type: 'tool_result', call_id: failure.call.call_id, result: failure.result, rawResponse: failure.rawResponse };
+        messages.push({ role: 'tool', content: JSON.stringify({ result: failure.result }) });
       }
 
       for (const call of turnResult.calls) {
-        yield { type: 'tool_call', call };
+        const rawResponse = formatToolCallRawResponse(call);
+        yield { type: 'tool_call', call, rawResponse };
         const result = await executeToolSafely(this.tools, call);
-        yield { type: 'tool_result', call, result };
+        yield { type: 'tool_result', call_id: call.call_id, result, rawResponse };
         messages.push({ role: 'tool', content: JSON.stringify({ tool: call.name, result }) });
       }
 
@@ -84,7 +92,7 @@ export class AgentLoop {
   private async *streamAssistantTurn(messages: ChatMessage[]): AsyncGenerator<AgentEvent, StreamTurnResult> {
     const parser = createYacaSxmlParser();
     const parsedEvents: YacaSxmlEvent[] = [];
-    const calls: ToolCall[] = [];
+    const calls: PendingToolCall[] = [];
     const parseFailures: ToolFailureCall[] = [];
     let response = '';
 
@@ -99,6 +107,7 @@ export class AgentLoop {
           parseFailures.push(...event.parseFailures);
         }
       }
+      this.logger.debug("full response: " + response);
       for (const patch of endAndDrain(parser)) {
         const normalizedPatch = assignPatchCallIds(patch, () => this.createCallId());
         const event = applyStreamingPatch(parsedEvents, normalizedPatch, () => this.createCallId());
@@ -133,19 +142,28 @@ function flushAssistantText(events: AgentEvent[], assistantEvents: YacaSxmlEvent
   assistantEvents.length = 0;
 }
 
-function applyStreamingPatch(events: YacaSxmlEvent[], patch: YacaSxmlPatch, createCallId: () => string): { calls: ToolCall[]; parseFailures: ToolFailureCall[] } {
+function applyStreamingPatch(events: YacaSxmlEvent[], patch: YacaSxmlPatch, createCallId: () => string): { calls: PendingToolCall[]; parseFailures: ToolFailureCall[] } {
   applySxmlPatch(events, patch);
   return {
     calls: patch.append
       .filter((event): event is Extract<YacaSxmlEvent, { type: 'tool_call' }> => event.type === 'tool_call')
-      .map((event) => ({ call_id: event.call_id, name: event.toolName, args: event.args })),
+      .map((event) => ({ call_id: event.call_id, name: event.toolName, args: event.args, rawResponse: formatAssistantToolCallRawResponse(event) })),
     parseFailures: patch.append
       .filter((event): event is Extract<YacaSxmlEvent, { type: 'parse_error' }> => event.type === 'parse_error')
       .map((event) => ({
         call: { call_id: createCallId(), name: 'parse_tool_call', args: { content: event.content } },
-        result: { ok: false, content: event.message }
+        result: { ok: false, content: event.message },
+        rawResponse: event.content
       }))
   };
+}
+
+function formatToolCallRawResponse(call: PendingToolCall): string {
+  return call.rawResponse;
+}
+
+function formatAssistantToolCallRawResponse(event: Extract<YacaSxmlEvent, { type: 'tool_call' }>): string {
+  return `<tool_call name="${event.toolName}">${event.content}</tool_call>`;
 }
 
 async function executeToolSafely(tools: ToolExecutor, call: ToolCall): Promise<ToolResult> {

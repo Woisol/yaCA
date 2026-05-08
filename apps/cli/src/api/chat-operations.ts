@@ -62,12 +62,9 @@ export function applyToolCall(current: ChatMessage[], event: Extract<AgentEvent,
 }
 
 export function applyToolResult(current: ChatMessage[], event: Extract<AgentEvent, { type: 'tool_result' }>, expanded: boolean): ChatMessage[] {
-  const hasMatchingCall = current.some((message) => message.kind === 'tool' && message.callId === event.call.call_id);
-  if (!hasMatchingCall) {
-    return applyToolResult(appendToolCall(current, event.call), event, expanded);
-  }
+  const callId = event.call_id ?? '';
   return current.map((message) => {
-    if (message.kind !== 'tool' || message.callId !== event.call.call_id) {
+    if (message.kind !== 'tool' || message.callId !== callId) {
       return message;
     }
     return {

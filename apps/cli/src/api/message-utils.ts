@@ -22,7 +22,7 @@ export function storedChatMessageToModelMessage(m: StoredChatMessage): StoredCha
       const value: StoredChatMessage['content'] = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
       if (value && typeof value === 'object' && 'type' in value) {
         if (value.type === 'tool_call') {
-          return { role: 'tool', content: `<tool_call name="${value.call.name}">${JSON.stringify(value.call.args)}</tool_call>` };
+          return { role: 'tool', content: value._rawResponse || `<tool_call name="${value.call.name}">${JSON.stringify(value.call.args)}</tool_call>` };
         }
         if (value.type === 'tool_result') {
           // const ok = value.result?.ok;
@@ -51,13 +51,13 @@ export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage
     }
     if (message.kind === 'tool' && message.callId && message.toolName) {
       const call = { call_id: message.callId, name: message.toolName, args: message.args ?? {} };
-      const stored: StoredChatMessage[] = [{ role: 'tool', content: { type: 'tool_call', call } }];
+      const stored: StoredChatMessage[] = [{ role: 'tool', content: { type: 'tool_call', call, _rawResponse: `<tool_call name="${call.name}">${JSON.stringify(call.args)}</tool_call>` } }];
       if (message.result !== undefined) {
         stored.push({
           role: 'tool',
           content: {
             type: 'tool_result',
-            call,
+            call_id: message.callId,
             result: { ok: message.status !== 'error', content: message.result }
           }
         });

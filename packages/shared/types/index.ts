@@ -31,8 +31,8 @@ export type ToolResult = {
 };
 
 export type ToolEventContent =
-  | { type: 'tool_call'; call: ToolCall }
-  | { type: 'tool_result'; call: ToolCall; result: ToolResult }
+  | { type: 'tool_call'; call: ToolCall; _rawResponse: string }
+  | { type: 'tool_result'; call_id?: string; result: ToolResult }
   | { type: 'error'; message: string };
 
 export type ToolDefinition = {
@@ -58,8 +58,8 @@ export type AgentEvent =
   | { type: 'assistant_replace'; text: string }
   | { type: 'assistant_text'; text: string }
   | { type: 'assistant_event'; patch: AssistantEventPatch }
-  | { type: 'tool_call'; call: ToolCall }
-  | { type: 'tool_result'; call: ToolCall; result: ToolResult }
+  | { type: 'tool_call'; call: ToolCall; rawResponse: string }
+  | { type: 'tool_result'; call_id?: string; result: ToolResult; rawResponse: string }
   | { type: 'error'; message: string };
 
 export type ModelClient = {

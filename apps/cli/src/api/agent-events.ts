@@ -2,10 +2,10 @@ import type { AgentEvent, ChatMessage, ToolEventContent } from '@yaca/types';
 
 export function createStoredAgentEventMessage(event: AgentEvent): { role: 'tool'; content: ToolEventContent } | undefined {
   if (event.type === 'tool_call') {
-    return { role: 'tool', content: { type: event.type, call: event.call } };
+    return { role: 'tool', content: { type: event.type, call: event.call, _rawResponse: event.rawResponse } };
   }
   if (event.type === 'tool_result') {
-    return { role: 'tool', content: { type: event.type, call: event.call, result: event.result } };
+    return { role: 'tool', content: { type: event.type, call_id: event.call_id, result: event.result } };
   }
   if (event.type === 'error') {
     return { role: 'tool', content: { type: event.type, message: event.message } };
@@ -25,7 +25,7 @@ export function appendAgentEvent(event: AgentEvent, appendLine: (kind: string, t
   } else if (event.type === 'tool_call') {
     appendLine('tool', `tool ${event.call.name} running`);
   } else if (event.type === 'tool_result') {
-    appendLine('tool', `${event.result.ok ? 'ok' : 'error'} ${event.call.name}: ${event.result.content}`);
+    appendLine('tool', `${event.result.ok ? 'ok' : 'error'} ${event.call_id ?? ''}: ${event.result.content}`);
   } else {
     appendLine('error', event.message);
   }

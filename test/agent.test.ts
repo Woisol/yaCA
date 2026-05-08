@@ -140,10 +140,34 @@ test('AgentLoop emits raw assistant events and links tool result by call_id', as
 
   assert.ok(toolCall);
   assert.ok(toolResult);
-  assert.equal(toolCall.call_id, toolResult.call.call_id);
+  assert.equal(toolCall.call_id, toolResult.call_id);
+  assert.match(toolResult.rawResponse, /<tool_call name="read_file">/);
   assert.equal(toolResult.result.ok, false);
   assert.match(toolResult.result.content, /disk failed/);
   assert.equal(events.at(-1)?.type, 'assistant_text');
+});
+
+test('AgentLoop preserves raw tool call response on tool call events', async () => {
+  const model: ModelClient = {
+    async complete() {
+      return 'Need <tool_call name="read_file">{ "path" : "a.txt" }</tool_call>';
+    }
+  };
+  const tools = {
+    async execute(): Promise<ToolResult> {
+      return { ok: true, content: 'file content' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+
+  const events = await agent._run([{ role: 'user', content: 'read it' }]);
+  const toolCall = events.find((event) => event.type === 'tool_call');
+
+  assert.ok(toolCall);
+  assert.equal(toolCall.rawResponse, '<tool_call name="read_file">{ "path" : "a.txt" }</tool_call>');
 });
 
 test('AgentLoop returns malformed tool call JSON to the model as a tool result', async () => {

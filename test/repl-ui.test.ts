@@ -26,8 +26,8 @@ test('renderSessionMessages converts resumed session history into chat lines', (
 
 test('renderSessionMessages rebuilds persisted tool call cards with results', () => {
   const lines = renderSessionMessages([
-    { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } } } },
-    { role: 'tool', content: { type: 'tool_result', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }, result: { ok: true, content: 'done' } } }
+    { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }, _rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>' } },
+    { role: 'tool', content: { type: 'tool_result', call_id: 'call-1', result: { ok: true, content: 'done' } } }
   ]);
 
   assert.deepEqual(lines, [{
@@ -75,8 +75,9 @@ test('applyToolResult updates the matching tool call card without showing conten
 
   const updated = applyToolResult(current, {
     type: 'tool_result',
-    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
-    result: { ok: true, content: 'file content' }
+    call_id: 'call-1',
+    result: { ok: true, content: 'file content' },
+    rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>'
   }, false);
 
   assert.deepEqual(updated, [{
@@ -101,8 +102,9 @@ test('applyToolResult expands matching tool result when tool output is enabled',
 
   const updated = applyToolResult(current, {
     type: 'tool_result',
-    call: { call_id: 'call-1', name: 'read_file', args: {} },
-    result: { ok: false, content: 'failed' }
+    call_id: 'call-1',
+    result: { ok: false, content: 'failed' },
+    rawResponse: '<tool_call name="read_file">{}</tool_call>'
   }, true);
 
   assert.equal(updated[0]?.kind, 'tool');
@@ -113,21 +115,27 @@ test('applyToolResult expands matching tool result when tool output is enabled',
 test('createStoredAgentEventMessage persists tool calls, tool results, and errors', () => {
   assert.deepEqual(createStoredAgentEventMessage({
     type: 'tool_call',
-    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }
+    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
+    rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>'
   }), {
     role: 'tool',
-    content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } } }
+    content: {
+      type: 'tool_call',
+      call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
+      _rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>'
+    }
   });
 
   assert.deepEqual(createStoredAgentEventMessage({
     type: 'tool_result',
-    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
-    result: { ok: false, content: 'missing' }
+    call_id: 'call-1',
+    result: { ok: false, content: 'missing' },
+    rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>'
   }), {
     role: 'tool',
     content: {
       type: 'tool_result',
-      call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
+      call_id: 'call-1',
       result: { ok: false, content: 'missing' }
     }
   });
