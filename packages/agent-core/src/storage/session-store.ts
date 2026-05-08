@@ -69,6 +69,7 @@ export class SessionStore {
     await mkdir(this.sessionDirectory(id), { recursive: true });
     const messagesPath = this.messagesPath(id);
     const existing = await readFileIfExists(messagesPath);
+    // TODO 不是说 jsonl 便于直接 append 吗？
     await atomicWrite(messagesPath, `${existing}${JSON.stringify(message)}\n`);
     const updated: SessionMeta = {
       ...session,
@@ -138,6 +139,7 @@ export class SessionStore {
   }
 }
 
+// 原子写
 async function atomicWrite(filePath: string, content: string): Promise<void> {
   const previous = writeQueues.get(filePath) ?? Promise.resolve();
   const next = previous.then(() => withFileLock(filePath, async () => {

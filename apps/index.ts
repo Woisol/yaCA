@@ -22,6 +22,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const baseUrl = args.baseUrl ?? config.base_url;
   const state: CliState = { model, baseUrl, apiKey: process.env.YACA_API_KEY ?? config.api_key, config, configStore };
 
+  // runtime
   const cwd = process.cwd();
   const store = new SessionStore({ workspace: cwd });
   const tools = createDefaultToolRegistry(cwd);

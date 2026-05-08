@@ -25,7 +25,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [busy, setBusy] = useState(false);
   const [lastCtrlCAt, setLastCtrlCAt] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 1, kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
+    { kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
   ]);
 
   const appendLine = (kind: ChatMessage['kind'], text: string) => {
@@ -53,13 +53,19 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     appendLine('user', text);
     setBusy(true);
     try {
-      const sessionIdBeforeCommand = runtime.state.sessionId;
-      const commandResult = await handleBuiltinCommand(text, runtime.state, runtime.store);
-      if (commandResult === '/exit') {
-        exit();
-        return;
-      }
-      if (commandResult !== undefined) {
+      const trimmed = text.trim();
+      if (trimmed.startsWith('/')) {
+        const sessionIdBeforeCommand = runtime.state.sessionId;
+        const commandResult = await handleBuiltinCommand(text, runtime.state, runtime.store);
+        if (commandResult === '/exit') {
+          exit();
+          return;
+        }
+        if (commandResult === undefined) {
+          const cmd = trimmed.split(/\s+/)[0];
+          appendLine('error', `Unknown command: ${cmd}`);
+          return;
+        }
         if (runtime.state.sessionId && runtime.state.sessionId !== sessionIdBeforeCommand && isSessionSwitchCommand(text)) {
           const history = await runtime.store.readMessages(runtime.state.sessionId);
           setMessages(renderSessionMessages(history));
@@ -77,7 +83,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
 
   return (
     <Box flexDirection="column">
-      <ChatArea messages={messages} />
+      <ChatArea messages={messages} hasSession={!!runtime.state.sessionId} />
       <Input input={input} />
       <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} />
     </Box>
@@ -129,8 +135,8 @@ function appendAgentEvent(event: AgentEvent, appendLine: (kind: ChatMessage['kin
 }
 
 export function appendChatLine(current: ChatMessage[], kind: ChatMessage['kind'], text: string): ChatMessage[] {
-  const nextId = current.reduce((max, line) => Math.max(max, line.id), 0) + 1;
-  return [...current, { id: nextId, kind, text }];
+  // const nextId = current.reduce((max, line) => Math.max(max, line.id), 0) + 1;
+  return [...current, {  kind, text }];
 }
 
 export function appendAssistantDelta(current: ChatMessage[], text: string): ChatMessage[] {

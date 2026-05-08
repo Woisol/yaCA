@@ -2,22 +2,27 @@ import { Box, Text, useStdout } from "ink";
 
 // 和 @yaca/types 中的 ChatMessage 混淆……
 export type ChatMessage = {
-  id: number;
+  // id: number;
   kind: 'user' | 'assistant' | 'tool' | 'status' | 'error';
   text: string;
 };
 
-export function ChatArea({ messages }: { messages: ChatMessage[] }) {
+export function ChatArea({ messages, hasSession }: { messages: ChatMessage[], hasSession: boolean }) {
   const { stdout } = useStdout();
   return <Box flexDirection="column">
-    {messages.length === 0 ? (
+    {!hasSession ? (
+      <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
+        <Text color="gray">Send a message to create a session or use /resume to browse history.</Text>
+      </Box>
+    ) :
+      messages.length === 0 ? (
       <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
         <Text color="gray">No messages yet. Start the conversation by typing!</Text>
       </Box>
 
     ) : (
       <Box flexDirection="column" marginBottom={1}>
-        {messages.map((message) => <MessageLine key={message.id} message={message} />)}
+            {messages.map((message, index) => <MessageLine key={index} message={message} />)}
       </Box>
     )
     }
