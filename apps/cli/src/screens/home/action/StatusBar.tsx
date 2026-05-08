@@ -1,4 +1,4 @@
-import { Box, Text } from "ink"
+import { Box, Spacer, Text } from "ink"
 import { readFileSync } from "node:fs"
 
 export interface StatusBarProps {
@@ -10,10 +10,11 @@ export function StatusBar({ busy, model, cwd }: StatusBarProps) {
   return (
     <Box width={"100%"} justifyContent="space-between">
       <Box>
-        {[
+        {/*ink 不能这样写😡 {[
           <Text>model={model}</Text>,
           <Text>cwd={cwd}</Text>
-        ].join(" ")}
+        ].join(<Text color="gray"> </Text>)} */}
+        <Text>{[`model=${model}`, `cwd=${cwd}`].join(" ")}</Text>
       </Box>
       <Box>
         {busy ?

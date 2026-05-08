@@ -14,12 +14,10 @@ export function ChatArea({ messages, hasSession }: { messages: ChatMessage[], ha
       <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
         <Text color="gray">Send a message to create a session or use /resume to browse history.</Text>
       </Box>
-    ) :
-      messages.length === 0 ? (
+    ) : messages.length === 0 ? (
       <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
         <Text color="gray">No messages yet. Start the conversation by typing!</Text>
-      </Box>
-
+        </Box>
     ) : (
       <Box flexDirection="column" marginBottom={1}>
             {messages.map((message, index) => <MessageLine key={index} message={message} />)}

@@ -157,7 +157,6 @@ export function replaceAssistantText(current: ChatMessage[], text: string): Chat
 
 export function renderSessionMessages(history: StoredChatMessage[]): ChatMessage[] {
   return history.map((message, index) => ({
-    id: index + 1,
     kind: message.role === 'user'
       ? 'user'
       : message.role === 'assistant'
