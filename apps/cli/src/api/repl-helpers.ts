@@ -27,6 +27,7 @@ export async function runAgentTurn(
   const content = await parseUserInput(text, runtime.cwd);
   await runtime.store.appendMessage(runtime.state.sessionId, { role: 'user', content });
   const assistantEvents: YacaSxmlEvent[] = [];
+  const assistantTextEvents: string[] = [];
   const storedHistory = await runtime.store.readMessages(runtime.state.sessionId);
   const initialMessages = storedHistory.map(storedChatMessageToModelMessage);
 
@@ -46,10 +47,13 @@ export async function runAgentTurn(
       setMessages((current) => applyToolResult(current, event, showToolOutput));
     } else {
       await appendStoredAgentEvent(runtime, event);
+      if (event.type === 'assistant_text') {
+        assistantTextEvents.push(event.text);
+      }
       appendAgentEvent(event, appendLine);
     }
   }
-  const assistantText = collectAssistantText(assistantEvents);
+  const assistantText = [collectAssistantText(assistantEvents), ...assistantTextEvents].filter(Boolean).join('');
   if (assistantText) {
     await runtime.store.appendMessage(runtime.state.sessionId, { role: 'assistant', content: assistantText });
   }

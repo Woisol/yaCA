@@ -7,22 +7,26 @@ export type YacaConfig = {
   base_url: string;
   api_key?: string;
   max_turns: number;
+  max_tool_retry: number;
   postpone_tool_calls: number;
 };
 
 type LegacyYacaConfig = Partial<YacaConfig> & {
   default_model?: string;
   models?: Array<{ name: string; base_url: string }>;
+  maxToolRetry?: number;
 };
 
 const defaultModel = 'qwen2.5-vl-7b';
 const defaultBaseUrl = 'http://127.0.0.1:11434/v1';
 const defaultPostponeToolCallsSeconds = 2;
+const defaultMaxToolRetry = 5;
 
 const defaultConfig: YacaConfig = {
   model: defaultModel,
   base_url: defaultBaseUrl,
   max_turns: 20,
+  max_tool_retry: defaultMaxToolRetry,
   postpone_tool_calls: defaultPostponeToolCallsSeconds
 };
 
@@ -60,6 +64,7 @@ function normalizeConfig(config: LegacyYacaConfig): YacaConfig {
     base_url: baseUrl,
     ...(config.api_key ? { api_key: config.api_key } : {}),
     max_turns: config.max_turns ?? 20,
+    max_tool_retry: config.max_tool_retry ?? config.maxToolRetry ?? defaultMaxToolRetry,
     postpone_tool_calls: config.postpone_tool_calls ?? defaultPostponeToolCallsSeconds
   };
 }

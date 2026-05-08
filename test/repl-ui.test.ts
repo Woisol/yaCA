@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { SessionStore, type CliState } from '@yaca/agent-core';
 import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
+import { runAgentTurn } from '../apps/cli/src/api/repl-helpers.js';
 
 // 现在不再在消息数据中附带 id
 // test('appendChatLine assigns unique ids for consecutive appends', () => {
@@ -195,4 +200,36 @@ test('applyRewindSelection ignores non-user selected messages', () => {
       { role: 'assistant', content: 'answer' }
     ]
   });
+});
+
+test('runAgentTurn persists assistant_text events that are not backed by sxml text', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-repl-'));
+  const store = new SessionStore({ homeDirectory: home, workspace: home });
+  const runtime = {
+    cwd: home,
+    state: { model: 'test-model' } as CliState,
+    store,
+    createAgent() {
+      return {
+        async *runStream() {
+          yield { type: 'assistant_text' as const, text: 'Stopped this turn because tool calls failed 2 times in a row.' };
+        }
+      };
+    }
+  };
+  const lines: Array<{ kind: string; text: string }> = [];
+
+  await runAgentTurn(
+    'hello',
+    runtime as never,
+    (kind, text) => lines.push({ kind, text }),
+    () => undefined,
+    false
+  );
+
+  assert.equal(lines.at(-1)?.text, 'Stopped this turn because tool calls failed 2 times in a row.');
+  assert.ok(runtime.state.sessionId);
+  const messages = await store.readMessages(runtime.state.sessionId);
+  assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant']);
+  assert.equal(messages.at(-1)?.content, 'Stopped this turn because tool calls failed 2 times in a row.');
 });

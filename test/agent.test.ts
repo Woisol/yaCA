@@ -204,3 +204,66 @@ test('AgentLoop returns malformed tool call JSON to the model as a tool result',
   assert.match(modelMessages.at(-1) ?? '', /Failed to parse assistant tool call/);
   assert.equal(events.at(-1)?.type, 'assistant_text');
 });
+
+test('AgentLoop stops the run after consecutive tool failures reach maxToolRetry', async () => {
+  let modelCalls = 0;
+  const model: ModelClient = {
+    async complete() {
+      modelCalls += 1;
+      return '<tool_call name="read_file">{"path":"missing.txt"}</tool_call>';
+    }
+  };
+  const executed: string[] = [];
+  const tools = {
+    async execute(name: string): Promise<ToolResult> {
+      executed.push(name);
+      return { ok: false, content: 'missing' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 5, postponeToolCalls: 1, maxToolRetry: 2 });
+
+  const events = await agent._run([{ role: 'user', content: 'read it' }]);
+
+  assert.equal(modelCalls, 2);
+  assert.deepEqual(executed, ['read_file', 'read_file']);
+  assert.equal(events.filter((event) => event.type === 'tool_result').length, 2);
+  const finalEvent = events.at(-1);
+  assert.equal(finalEvent?.type, 'assistant_text');
+  assert.match(finalEvent?.type === 'assistant_text' ? finalEvent.text : '', /failed 2 times\b/i);
+});
+
+test('AgentLoop resets consecutive tool failure count after a successful tool result', async () => {
+  let modelCalls = 0;
+  const model: ModelClient = {
+    async complete() {
+      modelCalls += 1;
+      return '<tool_call name="read_file">{"path":"file.txt"}</tool_call>';
+    }
+  };
+  const results: ToolResult[] = [
+    { ok: false, content: 'first failure' },
+    { ok: true, content: 'ok' },
+    { ok: false, content: 'second failure' },
+    { ok: false, content: 'third failure' }
+  ];
+  const tools = {
+    async execute(): Promise<ToolResult> {
+      return results.shift() ?? { ok: true, content: 'unused' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 6, postponeToolCalls: 1, maxToolRetry: 2 });
+
+  const events = await agent._run([{ role: 'user', content: 'read it' }]);
+
+  assert.equal(modelCalls, 4);
+  assert.equal(events.filter((event) => event.type === 'tool_result').length, 4);
+  const finalEvent = events.at(-1);
+  assert.equal(finalEvent?.type, 'assistant_text');
+  assert.match(finalEvent?.type === 'assistant_text' ? finalEvent.text : '', /failed 2 times\b/i);
+});

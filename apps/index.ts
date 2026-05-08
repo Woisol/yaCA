@@ -28,7 +28,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const cwd = process.cwd();
   const store = new SessionStore({ workspace: cwd });
   const tools = createDefaultToolRegistry(cwd);
-  const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }), maxTurns: config.max_turns, tools, postponeToolCalls: config.postpone_tool_calls });
+  const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }), maxTurns: config.max_turns, maxToolRetry: config.max_tool_retry, tools, postponeToolCalls: config.postpone_tool_calls });
 
   if (args.serve !== undefined) {
     startServer({ port: args.serve, agent: createAgent(), cwd });

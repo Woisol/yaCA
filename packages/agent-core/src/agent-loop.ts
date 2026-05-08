@@ -29,14 +29,16 @@ export class AgentLoop {
   private readonly model: ModelClient;
   private readonly tools: ToolExecutor;
   private readonly maxTurns: number;
+  private readonly maxToolRetry: number;
   private readonly postponeToolCalls: number;
   private readonly logger = new Logger('AgentLoop');
 
-  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; postponeToolCalls: number }) {
+  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number }) {
     this.model = options.model;
     this.tools = options.tools;
     this.postponeToolCalls = options.postponeToolCalls;
     this.maxTurns = options.maxTurns ?? 8;
+    this.maxToolRetry = options.maxToolRetry ?? 5;
   }
 
   /**
@@ -63,6 +65,7 @@ export class AgentLoop {
       { role: 'system', content: buildSystemPrompt(this.tools.hint()) },
       ...initialMessages
     ];
+    let consecutiveToolFailures = 0;
 
     for (let turn = 0; turn < this.maxTurns; turn += 1) {
       const turnResult = yield* this.streamAssistantTurn(messages);
@@ -75,6 +78,11 @@ export class AgentLoop {
         yield { type: 'tool_call', call: failure.call, rawResponse: failure.rawResponse };
         yield { type: 'tool_result', call_id: failure.call.call_id, result: failure.result, rawResponse: failure.rawResponse };
         messages.push({ role: 'tool', content: JSON.stringify({ result: failure.result }) });
+        consecutiveToolFailures = nextConsecutiveToolFailures(consecutiveToolFailures, failure.result);
+        if (consecutiveToolFailures >= this.maxToolRetry) {
+          yield { type: 'assistant_text', text: buildMaxToolRetryMessage(this.maxToolRetry) };
+          return;
+        }
       }
 
       for (const call of turnResult.calls) {
@@ -83,6 +91,11 @@ export class AgentLoop {
         const result = await executeToolSafely(this.tools, call);
         yield { type: 'tool_result', call_id: call.call_id, result, rawResponse };
         messages.push({ role: 'tool', content: JSON.stringify({ tool: call.name, result }) });
+        consecutiveToolFailures = nextConsecutiveToolFailures(consecutiveToolFailures, result);
+        if (consecutiveToolFailures >= this.maxToolRetry) {
+          yield { type: 'assistant_text', text: buildMaxToolRetryMessage(this.maxToolRetry) };
+          return;
+        }
       }
 
       await new Promise((resolve) => setTimeout(resolve, this.postponeToolCalls));
@@ -133,6 +146,14 @@ export class AgentLoop {
   private createCallId(): string {
     return `call-${this.nextCallSequence++}`;
   }
+}
+
+function nextConsecutiveToolFailures(current: number, result: ToolResult): number {
+  return result.ok ? 0 : current + 1;
+}
+
+function buildMaxToolRetryMessage(maxToolRetry: number): string {
+  return `Turn terminated because tool calls failed ${maxToolRetry} times.`;
 }
 
 function flushAssistantText(events: AgentEvent[], assistantEvents: YacaSxmlEvent[]): void {
