@@ -137,6 +137,20 @@ test('createReplShortcuts appends typed input and deletes one character', () => 
   assert.equal(context.input, 'ab');
 });
 
+test('createReplShortcuts toggles tool output on ctrl+o', () => {
+  let toggled = false;
+  const context = createContext({
+    toggleToolOutput() {
+      toggled = true;
+    }
+  });
+
+  const handled = dispatchShortcutInput(createReplShortcuts(), 'o', key({ ctrl: true }), context);
+
+  assert.equal(handled, true);
+  assert.equal(toggled, true);
+});
+
 type TestReplContext = ReplShortcutContext & {
   exited: boolean;
   messages: string[];
@@ -166,6 +180,7 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
     exit() {
       context.exited = true;
     },
+    toggleToolOutput() {},
     submit() {},
     ...overrides
   };

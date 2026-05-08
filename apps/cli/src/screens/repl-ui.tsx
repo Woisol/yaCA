@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Box, render, Text, useApp } from 'ink';
-import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
-import { AgentEvent, type ChatMessage as StoredChatMessage, type MessagePart } from '@yaca/types';
+import { applySxmlPatch, collectAssistantText, handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore, type YacaSxmlEvent } from '@yaca/agent-core';
+import { AgentEvent, type AssistantEvent, type AssistantEventPatch, type ChatMessage as StoredChatMessage, type MessagePart } from '@yaca/types';
 import { useKeyboardShortcuts } from '../input/registry.js';
 import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
 import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
@@ -23,6 +23,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const { exit } = useApp();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showToolOutput, setShowToolOutput] = useState(false);
   const [lastCtrlCAt, setLastCtrlCAt] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
@@ -42,6 +43,13 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     setBusy,
     setLastCtrlCAt,
     appendLine,
+    toggleToolOutput: () => {
+      setShowToolOutput((current) => {
+        const next = !current;
+        setMessages((messages) => setToolOutputExpanded(messages, next));
+        return next;
+      });
+    },
     submit: (text) => {
       void submit(text);
     },
@@ -73,7 +81,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
         appendLine('status', commandResult);
         return;
       }
-      await runAgentTurn(text, runtime, appendLine, setMessages);
+      await runAgentTurn(text, runtime, appendLine, setMessages, showToolOutput);
     } catch (error) {
       appendLine('error', formatError(error));
     } finally {
@@ -94,27 +102,34 @@ async function runAgentTurn(
   text: string,
   runtime: ReplRuntime,
   appendLine: (kind: ChatMessage['kind'], text: string) => void,
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  showToolOutput: boolean
 ): Promise<void> {
   if (!runtime.state.sessionId) {
     runtime.state.sessionId = (await runtime.store.createSession(text.slice(0, 80))).id;
   }
   const content = await parseUserInput(text, runtime.cwd);
   await runtime.store.appendMessage(runtime.state.sessionId, { role: 'user', content });
-  let streamedAssistantText = '';
+  const assistantEvents: YacaSxmlEvent[] = [];
   for await (const event of runtime.createAgent().runStream(await runtime.store.readMessages(runtime.state.sessionId))) {
     if (event.type === 'assistant_delta') {
-      streamedAssistantText += event.text;
-      setMessages((current) => appendAssistantDelta(current, event.text));
+      continue;
     } else if (event.type === 'assistant_replace') {
-      streamedAssistantText = event.text;
-      setMessages((current) => replaceAssistantText(current, event.text));
+      continue;
+    } else if (event.type === 'assistant_event') {
+      applySxmlPatch(assistantEvents, event.patch);
+      setMessages((current) => applyAssistantEventPatch(current, event.patch));
+    } else if (event.type === 'tool_call') {
+      continue;
+    } else if (event.type === 'tool_result') {
+      setMessages((current) => applyToolResult(current, event, showToolOutput));
     } else {
       appendAgentEvent(event, appendLine);
     }
   }
-  if (streamedAssistantText) {
-    await runtime.store.appendMessage(runtime.state.sessionId, { role: 'assistant', content: streamedAssistantText });
+  const assistantText = collectAssistantText(assistantEvents);
+  if (assistantText) {
+    await runtime.store.appendMessage(runtime.state.sessionId, { role: 'assistant', content: assistantText });
   }
 }
 
@@ -125,8 +140,10 @@ function appendAgentEvent(event: AgentEvent, appendLine: (kind: ChatMessage['kin
     appendLine('assistant', event.text);
   } else if (event.type === 'assistant_replace') {
     appendLine('assistant', event.text);
+  } else if (event.type === 'assistant_event') {
+    return;
   } else if (event.type === 'tool_call') {
-    appendLine('tool', `tool ${event.call.name} ${JSON.stringify(event.call.args)}`);
+    appendLine('tool', `tool ${event.call.name} running`);
   } else if (event.type === 'tool_result') {
     appendLine('tool', `${event.result.ok ? 'ok' : 'error'} ${event.call.name}: ${event.result.content}`);
   } else {
@@ -137,6 +154,57 @@ function appendAgentEvent(event: AgentEvent, appendLine: (kind: ChatMessage['kin
 export function appendChatLine(current: ChatMessage[], kind: ChatMessage['kind'], text: string): ChatMessage[] {
   // const nextId = current.reduce((max, line) => Math.max(max, line.id), 0) + 1;
   return [...current, {  kind, text }];
+}
+
+export function applyAssistantEventPatch(current: ChatMessage[], patch: AssistantEventPatch): ChatMessage[] {
+  let next = current;
+  if (patch.update === null) {
+    next = next.slice(0, -1);
+  } else if (patch.update !== undefined) {
+    next = replaceLastAssistantEvent(next, patch.update);
+  }
+  for (const event of patch.append) {
+    next = appendAssistantEvent(next, event);
+  }
+  return next;
+}
+
+export function appendAssistantEvent(current: ChatMessage[], event: AssistantEvent): ChatMessage[] {
+  if (event.type === 'text' || event.type === 'think') {
+    return appendAssistantDelta(current, event.content);
+  }
+  if (event.type === 'tool_call') {
+    return [...current, {
+      kind: 'tool',
+      callId: event.call_id ?? '',
+      toolName: event.toolName,
+      args: event.args,
+      status: 'running',
+      expanded: false
+    }];
+  }
+  if (event.type === 'parse_error') {
+    return appendChatLine(current, 'error', event.message);
+  }
+  return current;
+}
+
+export function applyToolResult(current: ChatMessage[], event: Extract<AgentEvent, { type: 'tool_result' }>, expanded: boolean): ChatMessage[] {
+  return current.map((message) => {
+    if (message.kind !== 'tool' || message.callId !== event.call.call_id) {
+      return message;
+    }
+    return {
+      ...message,
+      status: event.result.ok ? 'success' : 'error',
+      result: event.result.content,
+      expanded
+    };
+  });
+}
+
+export function setToolOutputExpanded(current: ChatMessage[], expanded: boolean): ChatMessage[] {
+  return current.map((message) => message.kind === 'tool' ? { ...message, expanded } : message);
 }
 
 export function appendAssistantDelta(current: ChatMessage[], text: string): ChatMessage[] {
@@ -183,4 +251,11 @@ function isSessionSwitchCommand(text: string): boolean {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function replaceLastAssistantEvent(current: ChatMessage[], event: AssistantEvent): ChatMessage[] {
+  if (event.type === 'text' || event.type === 'think') {
+    return replaceAssistantText(current, event.content);
+  }
+  return [...current.slice(0, -1), ...appendAssistantEvent([], event)];
 }

@@ -2,17 +2,13 @@ import sxml from '@woisol-g/sxml.js';
 // import { SxmlParser } from '@woisol-g/sxml.js';
 import type { SxmlParser as YacaSxmlParser } from '@woisol-g/sxml.js';
 import type { ErrorStrategy, SxmlEvent, SxmlResult, TagHandler } from '@woisol-g/sxml.js';
-import { ToolCall } from '@yaca/types/index.js';
+import type { AssistantEvent, ToolCall } from '@yaca/types/index.js';
 
 // ？？？hyw
 const { SxmlParser } = sxml as unknown as { SxmlParser: new (config: ConstructorParameters<typeof import('@woisol-g/sxml.js').SxmlParser>[0]) => import('@woisol-g/sxml.js').SxmlParser };
 // type YacaSxmlParser = import('@woisol-g/sxml.js').SxmlParser;
 
-export type YacaSxmlEvent =
-  | { type: 'text'; content: string }
-  | { type: 'think'; content: string }
-  | { type: 'tool_call'; toolName: string; args: Record<string, unknown>; content: string }
-  | { type: 'parse_error'; message: string; content: string };
+export type YacaSxmlEvent = AssistantEvent;
 
 export type YacaSxmlPatch = {
   update?: YacaSxmlEvent | null;

@@ -12,6 +12,7 @@ export type ReplShortcutContext = {
   setBusy: Dispatch<SetStateAction<boolean>>;
   setLastCtrlCAt: Dispatch<SetStateAction<number>>;
   appendLine(kind: MessageKind, text: string): void;
+  toggleToolOutput(): void;
   submit(text: string): void;
   exit(): void;
 };
@@ -32,6 +33,13 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       when: (context) => context.busy,
       match: () => true,
       run: () => {}
+    },
+    {
+      name: 'toggle-tool-output',
+      match: (input, key) => key.ctrl && input === 'o',
+      run: (context) => {
+        context.toggleToolOutput();
+      }
     },
     {
       name: 'submit-input',

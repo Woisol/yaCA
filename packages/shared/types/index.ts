@@ -20,6 +20,7 @@ export type ChatMessage = {
 };
 
 export type ToolCall = {
+  call_id?: string;
   name: string;
   args: Record<string, unknown>;
 };
@@ -36,10 +37,22 @@ export type ToolDefinition = {
   execute(args: Record<string, unknown>): Promise<ToolResult>;
 };
 
+export type AssistantEvent =
+  | { type: 'text'; content: string }
+  | { type: 'think'; content: string }
+  | { type: 'tool_call'; call_id?: string; toolName: string; args: Record<string, unknown>; content: string }
+  | { type: 'parse_error'; message: string; content: string };
+
+export type AssistantEventPatch = {
+  update?: AssistantEvent | null;
+  append: AssistantEvent[];
+};
+
 export type AgentEvent =
   | { type: 'assistant_delta'; text: string }
   | { type: 'assistant_replace'; text: string }
   | { type: 'assistant_text'; text: string }
+  | { type: 'assistant_event'; patch: AssistantEventPatch }
   | { type: 'tool_call'; call: ToolCall }
   | { type: 'tool_result'; call: ToolCall; result: ToolResult }
   | { type: 'error'; message: string };

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendAssistantDelta, appendChatLine, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
+import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyToolResult, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
 
 // 现在不再在消息数据中附带 id
 // test('appendChatLine assigns unique ids for consecutive appends', () => {
@@ -45,4 +45,50 @@ test('replaceAssistantText replaces the active assistant line after parser rollb
   const replaced = replaceAssistantText(current, 'Need ');
 
   assert.deepEqual(replaced, [{ kind: 'assistant', text: 'Need ' }]);
+});
+
+test('applyToolResult updates the matching tool call card without showing content by default', () => {
+  const current = appendAssistantEvent([], {
+    type: 'tool_call',
+    call_id: 'call-1',
+    toolName: 'read_file',
+    args: { path: 'a.txt' },
+    content: '{"path":"a.txt"}'
+  });
+
+  const updated = applyToolResult(current, {
+    type: 'tool_result',
+    call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } },
+    result: { ok: true, content: 'file content' }
+  }, false);
+
+  assert.deepEqual(updated, [{
+    kind: 'tool',
+    callId: 'call-1',
+    toolName: 'read_file',
+    args: { path: 'a.txt' },
+    status: 'success',
+    result: 'file content',
+    expanded: false
+  }]);
+});
+
+test('applyToolResult expands matching tool result when tool output is enabled', () => {
+  const current = appendAssistantEvent([], {
+    type: 'tool_call',
+    call_id: 'call-1',
+    toolName: 'read_file',
+    args: {},
+    content: '{}'
+  });
+
+  const updated = applyToolResult(current, {
+    type: 'tool_result',
+    call: { call_id: 'call-1', name: 'read_file', args: {} },
+    result: { ok: false, content: 'failed' }
+  }, true);
+
+  assert.equal(updated[0]?.kind, 'tool');
+  assert.equal(updated[0]?.expanded, true);
+  assert.equal(updated[0]?.status, 'error');
 });

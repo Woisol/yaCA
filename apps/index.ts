@@ -61,6 +61,16 @@ async function runOne(inputText: string, state: CliState, store: SessionStore, a
       output.write(event.text);
     } else if (event.type === 'assistant_replace') {
       output.write(`\n${event.text}`);
+    } else if (event.type === 'assistant_event') {
+      for (const item of event.patch.append) {
+        if (item.type === 'text' || item.type === 'think') {
+          output.write(item.content);
+        } else if (item.type === 'tool_call') {
+          output.write(`tool ${item.toolName} running\n`);
+        } else if (item.type === 'parse_error') {
+          output.write(`Error: ${item.message}\n`);
+        }
+      }
     } else if (event.type === 'tool_call') {
       output.write(`tool ${event.call.name} ${JSON.stringify(event.call.args)}\n`);
     } else if (event.type === 'tool_result') {
