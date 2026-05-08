@@ -17,7 +17,7 @@ export function startServer(options: { port: number; agent: AgentLoop; cwd: stri
           throw new Error('message must be a string');
         }
         const content = await parseUserInput(body.message, options.cwd);
-        const events = await options.agent.run([{ role: 'user', content }]);
+        const events = await options.agent._run([{ role: 'user', content }]);
         response.writeHead(200, { 'content-type': 'application/json' });
         response.end(JSON.stringify({ events }));
       } catch (error) {

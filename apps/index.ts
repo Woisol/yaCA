@@ -28,7 +28,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const cwd = process.cwd();
   const store = new SessionStore({ workspace: cwd });
   const tools = createDefaultToolRegistry(cwd);
-  const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }), tools });
+  const createAgent = () => new AgentLoop({ model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }), maxTurns: config.max_turns, tools, postponeToolCalls: config.postpone_tool_calls });
 
   if (args.serve !== undefined) {
     startServer({ port: args.serve, agent: createAgent(), cwd });
@@ -52,7 +52,7 @@ async function runOne(inputText: string, state: CliState, store: SessionStore, a
   }
   const content = await parseUserInput(inputText, cwd);
   await store.appendMessage(state.sessionId, { role: 'user', content });
-  const events = await agent.run(await store.readMessages(state.sessionId));
+  const events = await agent._run(await store.readMessages(state.sessionId));
   for (const event of events) {
     if (event.type === 'assistant_text') {
       output.write(`${event.text}\n`);

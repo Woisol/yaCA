@@ -9,7 +9,13 @@ type ToolExecutor = {
 type StreamTurnResult = {
   response: string;
   calls: ToolCall[];
+  parseFailures: ToolFailureCall[];
   stopped: boolean;
+};
+
+type ToolFailureCall = {
+  call: ToolCall;
+  result: ToolResult;
 };
 
 export class AgentLoop {
@@ -17,14 +23,19 @@ export class AgentLoop {
   private readonly model: ModelClient;
   private readonly tools: ToolExecutor;
   private readonly maxTurns: number;
+  private readonly postponeToolCalls: number;
 
-  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number }) {
+  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; postponeToolCalls: number }) {
     this.model = options.model;
     this.tools = options.tools;
+    this.postponeToolCalls = options.postponeToolCalls;
     this.maxTurns = options.maxTurns ?? 8;
   }
 
-  async run(initialMessages: ChatMessage[]): Promise<AgentEvent[]> {
+  /**
+   * 同步 agent loop 方法，逐步弃用
+   */
+  async _run(initialMessages: ChatMessage[]): Promise<AgentEvent[]> {
     const events: AgentEvent[] = [];
     const assistantEvents: YacaSxmlEvent[] = [];
     for await (const event of this.runStream(initialMessages)) {
@@ -51,7 +62,13 @@ export class AgentLoop {
       if (turnResult.stopped) break;
 
       messages.push({ role: 'assistant', content: turnResult.response });
-      if (turnResult.calls.length === 0) break;
+      if (turnResult.calls.length === 0 && turnResult.parseFailures.length === 0) break;
+
+      for (const failure of turnResult.parseFailures) {
+        yield { type: 'tool_call', call: failure.call };
+        yield { type: 'tool_result', call: failure.call, result: failure.result };
+        messages.push({ role: 'tool', content: JSON.stringify({ tool: failure.call.name, result: failure.result }) });
+      }
 
       for (const call of turnResult.calls) {
         yield { type: 'tool_call', call };
@@ -59,6 +76,8 @@ export class AgentLoop {
         yield { type: 'tool_result', call, result };
         messages.push({ role: 'tool', content: JSON.stringify({ tool: call.name, result }) });
       }
+
+      await new Promise((resolve) => setTimeout(resolve, this.postponeToolCalls));
     }
   }
 
@@ -66,6 +85,7 @@ export class AgentLoop {
     const parser = createYacaSxmlParser();
     const parsedEvents: YacaSxmlEvent[] = [];
     const calls: ToolCall[] = [];
+    const parseFailures: ToolFailureCall[] = [];
     let response = '';
 
     try {
@@ -73,29 +93,23 @@ export class AgentLoop {
         response += chunk;
         for (const patch of writeAndDrain(parser, chunk)) {
           const normalizedPatch = assignPatchCallIds(patch, () => this.createCallId());
-          const event = applyStreamingPatch(parsedEvents, normalizedPatch);
-          if (event.type === 'error') {
-            yield { type: 'error', message: event.message };
-            return { response, calls, stopped: true };
-          }
+          const event = applyStreamingPatch(parsedEvents, normalizedPatch, () => this.createCallId());
           yield { type: 'assistant_event', patch: normalizedPatch };
           calls.push(...event.calls);
+          parseFailures.push(...event.parseFailures);
         }
       }
       for (const patch of endAndDrain(parser)) {
         const normalizedPatch = assignPatchCallIds(patch, () => this.createCallId());
-        const event = applyStreamingPatch(parsedEvents, normalizedPatch);
-        if (event.type === 'error') {
-          yield { type: 'error', message: event.message };
-          return { response, calls, stopped: true };
-        }
+        const event = applyStreamingPatch(parsedEvents, normalizedPatch, () => this.createCallId());
         yield { type: 'assistant_event', patch: normalizedPatch };
         calls.push(...event.calls);
+        parseFailures.push(...event.parseFailures);
       }
-      return { response, calls, stopped: false };
+      return { response, calls, parseFailures, stopped: false };
     } catch (error) {
       yield { type: 'error', message: `Model request failed: ${formatError(error)}` };
-      return { response, calls, stopped: true };
+      return { response, calls, parseFailures, stopped: true };
     }
   }
 
@@ -119,16 +133,18 @@ function flushAssistantText(events: AgentEvent[], assistantEvents: YacaSxmlEvent
   assistantEvents.length = 0;
 }
 
-function applyStreamingPatch(events: YacaSxmlEvent[], patch: YacaSxmlPatch): { type: 'ok'; calls: ToolCall[] } | { type: 'error'; message: string } {
+function applyStreamingPatch(events: YacaSxmlEvent[], patch: YacaSxmlPatch, createCallId: () => string): { calls: ToolCall[]; parseFailures: ToolFailureCall[] } {
   applySxmlPatch(events, patch);
-  for (const event of patch.append) {
-    if (event.type === 'parse_error') return { type: 'error', message: event.message };
-  }
   return {
-    type: 'ok',
     calls: patch.append
       .filter((event): event is Extract<YacaSxmlEvent, { type: 'tool_call' }> => event.type === 'tool_call')
-      .map((event) => ({ call_id: event.call_id, name: event.toolName, args: event.args }))
+      .map((event) => ({ call_id: event.call_id, name: event.toolName, args: event.args })),
+    parseFailures: patch.append
+      .filter((event): event is Extract<YacaSxmlEvent, { type: 'parse_error' }> => event.type === 'parse_error')
+      .map((event) => ({
+        call: { call_id: createCallId(), name: 'parse_tool_call', args: { content: event.content } },
+        result: { ok: false, content: event.message }
+      }))
   };
 }
 

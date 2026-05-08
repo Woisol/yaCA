@@ -6,6 +6,8 @@ export type YacaConfig = {
   model: string;
   base_url: string;
   api_key?: string;
+  max_turns: number;
+  postpone_tool_calls: number;
 };
 
 type LegacyYacaConfig = Partial<YacaConfig> & {
@@ -15,10 +17,13 @@ type LegacyYacaConfig = Partial<YacaConfig> & {
 
 const defaultModel = 'qwen2.5-vl-7b';
 const defaultBaseUrl = 'http://127.0.0.1:11434/v1';
+const defaultPostponeToolCallsSeconds = 1;
 
 const defaultConfig: YacaConfig = {
   model: defaultModel,
-  base_url: defaultBaseUrl
+  base_url: defaultBaseUrl,
+  max_turns: 20,
+  postpone_tool_calls: defaultPostponeToolCallsSeconds
 };
 
 export class ConfigStore {
@@ -53,6 +58,8 @@ function normalizeConfig(config: LegacyYacaConfig): YacaConfig {
   return {
     model,
     base_url: baseUrl,
-    ...(config.api_key ? { api_key: config.api_key } : {})
+    ...(config.api_key ? { api_key: config.api_key } : {}),
+    max_turns: config.max_turns ?? 20,
+    postpone_tool_calls: config.postpone_tool_calls ?? defaultPostponeToolCallsSeconds
   };
 }
