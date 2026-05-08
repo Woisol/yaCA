@@ -7,6 +7,8 @@ import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcut
 import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
 import { Input } from './home/action/Input.js';
 import { StatusBar } from './home/action/StatusBar.js';
+import { Rewind } from './home/action/Rewind.js';
+import { SessionMeta } from '@yaca/agent-core/storage/session-store.js';
 
 export type ReplRuntime = {
   cwd: string;
@@ -25,6 +27,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [busy, setBusy] = useState(false);
   const [showToolOutput, setShowToolOutput] = useState(false);
   const [lastCtrlCAt, setLastCtrlCAt] = useState(0);
+  const [showRewind, setShowRewind] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
   ]);
@@ -94,6 +97,11 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
       <ChatArea messages={messages} hasSession={!!runtime.state.sessionId} />
       <Input input={input} />
       <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} />
+      <Rewind sessions={["1", "2", "3"].map((id) => ({ id, name: `Session ${id}` }) as unknown as SessionMeta)} onSessionSelect={(sessionId) => {
+        // Handle session selection
+      }} onQuit={() => {
+        setShowRewind(false);
+      }} />
     </Box>
   );
 }
