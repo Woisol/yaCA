@@ -1,0 +1,67 @@
+name: Publish packages (pnpm workspace)
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      NPM_CONFIG_CACHE: .npm-cache
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run workspace tests
+        run: pnpm -w test
+
+      - name: Build workspace
+        run: pnpm -w build
+
+      - name: Publish workspace packages
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # write auth token for pnpm/npm
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+          # publish all packages in the workspace (requires packages to be versioned)
+          pnpm -w publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Write release summary
+        shell: bash
+        run: |
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+
+          {
+            echo "## Published package"
+            echo
+            echo "- npm: https://www.npmjs.com/package/${PACKAGE_NAME}"
+            echo "- jsDelivr JS: https://cdn.jsdelivr.net/npm/${PACKAGE_NAME}@${PACKAGE_VERSION}/dist/configurable-cross-menu.js"
+            echo "- jsDelivr CSS: https://cdn.jsdelivr.net/npm/${PACKAGE_NAME}@${PACKAGE_VERSION}/dist/configurable-cross-menu.css"
+          } >> "$GITHUB_STEP_SUMMARY"

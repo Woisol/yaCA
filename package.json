@@ -1,6 +1,6 @@
 {
   "name": "@woisol-g/yaca",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Yet another Coding Agent.",
   "type": "module",
   "bin": {
