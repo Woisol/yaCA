@@ -212,6 +212,7 @@ function assignEventCallId(event: AssistantEvent, createCallId: () => string): A
 function buildSystemPrompt(toolHint: string): string {
   return [
     'You are YACA, a local coding agent running in a terminal.',
+    'Markdown render is not supported, so use plain text to respond unless requested.',
     'When you need a tool, emit exactly: <tool_call name="tool_name">{"arg":"value"}</tool_call>.',
     'Available tools:',
     toolHint

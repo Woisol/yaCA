@@ -66,15 +66,17 @@ function MessageLine({ message }: { message: ChatMessage }) {
 
 function ToolMessage({ message }: { message: ChatMessage }) {
   const status = message.status ?? 'success';
-  const color = status === 'error' ? 'red' : status === 'running' ? 'yellow' : 'green';
+  const color = status === 'error' ? 'red' : status === 'running' ? 'gray' : 'green';
   const title = message.toolName
     ? `${message.toolName} ${status === 'running' ? 'executing...' : status}`
     : message.text ?? '';
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={color} paddingX={1}>
-      <Text color={color}>{title}</Text>
-      {message.args ? <Text color="gray">{JSON.stringify(message.args)}</Text> : null}
+      <Box flexDirection="row">
+        <Text color={color}>{status === 'error' ? '○' : '●'} </Text>
+        <Text color={"grey"}>{title}( {message.args && Object.entries(message.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')} )</Text>
+      </Box>
       {message.expanded && message.result ? <Text>{message.result}</Text> : null}
     </Box>
   );
