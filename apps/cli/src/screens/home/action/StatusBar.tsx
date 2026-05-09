@@ -5,9 +5,10 @@ import { readFileSync } from "node:fs"
 export interface StatusBarProps {
   busy: boolean,
   model: string,
-  cwd: string
+  cwd: string,
+  trustMode: boolean
 }
-export function StatusBar({ busy, model, cwd }: StatusBarProps) {
+export function StatusBar({ busy, model, cwd, trustMode }: StatusBarProps) {
   return (
     <Box width={"100%"} justifyContent="space-between">
       <Box>
@@ -22,6 +23,7 @@ export function StatusBar({ busy, model, cwd }: StatusBarProps) {
           <Text color="yellow">⚡ thinking...</Text> :
           <Text color="gray">yaca v{YACA_VERSION}</Text>
         }
+        {trustMode && <Text color="red"> [TRUST MODE]</Text>}
       </Box>
     </Box>
   )

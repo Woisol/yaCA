@@ -9,13 +9,18 @@ export type YacaConfig = {
   api_key?: string;
   max_turns: number;
   max_tool_retry: number;
-  postpone_tool_calls: number;
+  tool_call: {
+    tool_call_compatible: boolean;
+    postpone_tool_calls: number;
+  };
 };
 
 type LegacyYacaConfig = Partial<YacaConfig> & {
   default_model?: string;
   models?: Array<{ name: string; base_url: string }>;
   maxToolRetry?: number;
+  postpone_tool_calls?: number;
+  tool_call_compatible?: boolean;
 };
 
 const defaultModel = 'qwen2.5-vl-7b';
@@ -28,7 +33,10 @@ const defaultConfig: YacaConfig = {
   base_url: defaultBaseUrl,
   max_turns: 20,
   max_tool_retry: defaultMaxToolRetry,
-  postpone_tool_calls: defaultPostponeToolCallsSeconds
+  tool_call: {
+    tool_call_compatible: false,
+    postpone_tool_calls: defaultPostponeToolCallsSeconds
+  }
 };
 
 export class ConfigStore {
@@ -66,6 +74,9 @@ function normalizeConfig(config: LegacyYacaConfig): YacaConfig {
     ...(config.api_key ? { api_key: config.api_key } : {}),
     max_turns: config.max_turns ?? 20,
     max_tool_retry: config.max_tool_retry ?? config.maxToolRetry ?? defaultMaxToolRetry,
-    postpone_tool_calls: config.postpone_tool_calls ?? defaultPostponeToolCallsSeconds
+    tool_call: {
+      tool_call_compatible: config.tool_call?.tool_call_compatible ?? config.tool_call_compatible ?? false,
+      postpone_tool_calls: config.tool_call?.postpone_tool_calls ?? config.postpone_tool_calls ?? defaultPostponeToolCallsSeconds
+    }
   };
 }

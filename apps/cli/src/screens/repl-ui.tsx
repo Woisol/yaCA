@@ -247,7 +247,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
               onCompletionOpenChange={setShowPathCompletion}
               onSubmit={submitInput}
             />
-            <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} />
+            <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} trustMode={false} />
         </>
       )}
       {showResume ? (

@@ -1,32 +1,15 @@
-import type { AgentEvent, AssistantEvent, ChatMessage, ModelClient, ToolCall, ToolResult } from '@yaca/types';
-import { applySxmlPatch, collectAssistantText, createYacaSxmlParser, endAndDrain, writeAndDrain, type YacaSxmlEvent, type YacaSxmlPatch } from './parser/sxml-adapter.js';
-import { Logger } from '@yaca/utils/logger.js';
-import { buildSystemPrompt } from './llm/model-client.js';
+import type { AgentEvent, ChatMessage, ChatToolCall, ModelClient, ToolCall, ToolDefinition, ToolResult } from '@yaca/types';
+import { applySxmlPatch, collectAssistantText, type YacaSxmlEvent } from './parser/sxml-adapter.js';
+import { buildOpenAIToolSystemPrompt, buildSystemPrompt } from './llm/model-client.js';
+import { createOpenAICompatibleAssistantTurn } from './llm/openai-compatible-assistant-turn.js';
+import { createSxmlAssistantTurn } from './llm/sxml-assistant-turn.js';
+import type { AgentRunOptions, AssistantTurnStrategy, PendingToolCall } from './llm/assistant-turn.js';
+import { formatError } from './llm/assistant-turn.js';
 
 type ToolExecutor = {
   execute(name: string, args: Record<string, unknown>): Promise<ToolResult>;
   hint(): string;
-};
-
-type StreamTurnResult = {
-  response: string;
-  calls: PendingToolCall[];
-  parseFailures: ToolFailureCall[];
-  stopped: boolean;
-};
-
-type AgentRunOptions = {
-  signal?: AbortSignal;
-};
-
-type PendingToolCall = ToolCall & {
-  rawResponse: string;
-};
-
-type ToolFailureCall = {
-  call: ToolCall;
-  result: ToolResult;
-  rawResponse: string;
+  definitions?(): ToolDefinition[];
 };
 
 export class AgentLoop {
@@ -36,14 +19,19 @@ export class AgentLoop {
   private readonly maxTurns: number;
   private readonly maxToolRetry: number;
   private readonly postponeToolCalls: number;
-  private readonly logger = new Logger('AgentLoop');
+  private readonly streamAssistantTurn: AssistantTurnStrategy;
+  private readonly toolCallCompatible: boolean;
 
-  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number }) {
+  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean }) {
     this.model = options.model;
     this.tools = options.tools;
     this.postponeToolCalls = options.postponeToolCalls;
     this.maxTurns = options.maxTurns ?? 8;
     this.maxToolRetry = options.maxToolRetry ?? 5;
+    this.toolCallCompatible = options.toolCallCompatible ?? false;
+    this.streamAssistantTurn = options.toolCallCompatible
+      ? createSxmlAssistantTurn(this.model)
+      : createOpenAICompatibleAssistantTurn(this.model);
   }
 
   /**
@@ -67,22 +55,25 @@ export class AgentLoop {
 
   async *runStream(initialMessages: ChatMessage[], options: AgentRunOptions = {}): AsyncIterable<AgentEvent> {
     const messages: ChatMessage[] = [
-      { role: 'system', content: buildSystemPrompt(this.tools.hint()) },
+      { role: 'system', content: this.toolCallCompatible ? buildSystemPrompt(this.tools.hint()) : buildOpenAIToolSystemPrompt() },
       ...initialMessages
     ];
     let consecutiveToolFailures = 0;
 
     for (let turn = 0; turn < this.maxTurns; turn += 1) {
-      const turnResult = yield* this.streamAssistantTurn(messages, options);
+      const turnResult = yield* this.streamAssistantTurn(messages, options, {
+        createCallId: () => this.createCallId(),
+        tools: this.tools.definitions?.() ?? []
+      });
       if (turnResult.stopped) break;
 
-      messages.push({ role: 'assistant', content: turnResult.response });
+      messages.push(createAssistantHistoryMessage(turnResult.response, turnResult.calls, this.toolCallCompatible));
       if (turnResult.calls.length === 0 && turnResult.parseFailures.length === 0) break;
 
       for (const failure of turnResult.parseFailures) {
         yield { type: 'tool_call', call: failure.call, rawResponse: failure.rawResponse };
         yield { type: 'tool_result', call_id: failure.call.call_id, result: failure.result, rawResponse: failure.rawResponse };
-        messages.push({ role: 'tool', content: JSON.stringify({ result: failure.result }) });
+        messages.push(createToolHistoryMessage(failure.call, failure.result, this.toolCallCompatible));
         consecutiveToolFailures = nextConsecutiveToolFailures(consecutiveToolFailures, failure.result);
         if (consecutiveToolFailures >= this.maxToolRetry) {
           yield { type: 'assistant_text', text: buildMaxToolRetryMessage(this.maxToolRetry) };
@@ -95,7 +86,7 @@ export class AgentLoop {
         yield { type: 'tool_call', call, rawResponse };
         const result = await executeToolSafely(this.tools, call);
         yield { type: 'tool_result', call_id: call.call_id, result, rawResponse };
-        messages.push({ role: 'tool', content: JSON.stringify({ tool: call.name, result }) });
+        messages.push(createToolHistoryMessage(call, result, this.toolCallCompatible));
         consecutiveToolFailures = nextConsecutiveToolFailures(consecutiveToolFailures, result);
         if (consecutiveToolFailures >= this.maxToolRetry) {
           yield { type: 'assistant_text', text: buildMaxToolRetryMessage(this.maxToolRetry) };
@@ -105,50 +96,6 @@ export class AgentLoop {
 
       await new Promise((resolve) => setTimeout(resolve, this.postponeToolCalls));
     }
-  }
-
-  private async *streamAssistantTurn(messages: ChatMessage[], options: AgentRunOptions): AsyncGenerator<AgentEvent, StreamTurnResult> {
-    const parser = createYacaSxmlParser();
-    const parsedEvents: YacaSxmlEvent[] = [];
-    const calls: PendingToolCall[] = [];
-    const parseFailures: ToolFailureCall[] = [];
-    let response = '';
-
-    try {
-      for await (const chunk of this.readModelChunks(messages, options)) {
-        response += chunk;
-        for (const patch of writeAndDrain(parser, chunk)) {
-          const normalizedPatch = assignPatchCallIds(patch, () => this.createCallId());
-          const event = applyStreamingPatch(parsedEvents, normalizedPatch, () => this.createCallId());
-          yield { type: 'assistant_event', patch: normalizedPatch };
-          calls.push(...event.calls);
-          parseFailures.push(...event.parseFailures);
-        }
-      }
-      this.logger.debug("full response: " + response);
-      for (const patch of endAndDrain(parser)) {
-        const normalizedPatch = assignPatchCallIds(patch, () => this.createCallId());
-        const event = applyStreamingPatch(parsedEvents, normalizedPatch, () => this.createCallId());
-        yield { type: 'assistant_event', patch: normalizedPatch };
-        calls.push(...event.calls);
-        parseFailures.push(...event.parseFailures);
-      }
-      return { response, calls, parseFailures, stopped: false };
-    } catch (error) {
-      if (isAbortError(error)) {
-        return { response, calls, parseFailures, stopped: true };
-      }
-      yield { type: 'error', message: `Model request failed: ${formatError(error)}` };
-      return { response, calls, parseFailures, stopped: true };
-    }
-  }
-
-  private async *readModelChunks(messages: ChatMessage[], options: AgentRunOptions): AsyncIterable<string> {
-    if (this.model.streamComplete) {
-      yield* this.model.streamComplete(messages, options);
-      return;
-    }
-    yield await this.model.complete(messages, options);
   }
 
   private createCallId(): string {
@@ -171,28 +118,38 @@ function flushAssistantText(events: AgentEvent[], assistantEvents: YacaSxmlEvent
   assistantEvents.length = 0;
 }
 
-function applyStreamingPatch(events: YacaSxmlEvent[], patch: YacaSxmlPatch, createCallId: () => string): { calls: PendingToolCall[]; parseFailures: ToolFailureCall[] } {
-  applySxmlPatch(events, patch);
-  return {
-    calls: patch.append
-      .filter((event): event is Extract<YacaSxmlEvent, { type: 'tool_call' }> => event.type === 'tool_call')
-      .map((event) => ({ call_id: event.call_id, name: event.toolName, args: event.args, rawResponse: formatAssistantToolCallRawResponse(event) })),
-    parseFailures: patch.append
-      .filter((event): event is Extract<YacaSxmlEvent, { type: 'parse_error' }> => event.type === 'parse_error')
-      .map((event) => ({
-        call: { call_id: createCallId(), name: 'parse_tool_call', args: { content: event.content } },
-        result: { ok: false, content: event.message },
-        rawResponse: event.content
-      }))
-  };
-}
-
 function formatToolCallRawResponse(call: PendingToolCall): string {
   return call.rawResponse;
 }
 
-function formatAssistantToolCallRawResponse(event: Extract<YacaSxmlEvent, { type: 'tool_call' }>): string {
-  return `<tool_call name="${event.toolName}">${event.content}</tool_call>`;
+function createAssistantHistoryMessage(response: string, calls: PendingToolCall[], toolCallCompatible: boolean): ChatMessage {
+  if (toolCallCompatible || calls.length === 0) {
+    return { role: 'assistant', content: response };
+  }
+  return {
+    role: 'assistant',
+    content: response || null,
+    tool_calls: calls.map(toOpenAIChatToolCall)
+  };
+}
+
+function createToolHistoryMessage(call: ToolCall, result: ToolResult, toolCallCompatible: boolean): ChatMessage {
+  return {
+    role: 'tool',
+    content: JSON.stringify({ tool: call.name, result }),
+    ...(!toolCallCompatible && call.call_id ? { tool_call_id: call.call_id } : {})
+  };
+}
+
+function toOpenAIChatToolCall(call: PendingToolCall): ChatToolCall {
+  return {
+    id: call.call_id ?? '',
+    type: 'function',
+    function: {
+      name: call.name,
+      arguments: JSON.stringify(call.args)
+    }
+  };
 }
 
 async function executeToolSafely(tools: ToolExecutor, call: ToolCall): Promise<ToolResult> {
@@ -203,25 +160,3 @@ async function executeToolSafely(tools: ToolExecutor, call: ToolCall): Promise<T
   }
 }
 
-function assignPatchCallIds(patch: YacaSxmlPatch, createCallId: () => string): YacaSxmlPatch {
-  return {
-    update: patch.update === undefined ? undefined : patch.update === null ? null : assignEventCallId(patch.update, createCallId),
-    append: patch.append.map((event) => assignEventCallId(event, createCallId))
-  };
-}
-
-function assignEventCallId(event: AssistantEvent, createCallId: () => string): AssistantEvent {
-  if (event.type !== 'tool_call' || event.call_id) {
-    return event;
-  }
-  return { ...event, call_id: createCallId() };
-}
-
-
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError';
-}

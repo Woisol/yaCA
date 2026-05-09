@@ -18,29 +18,77 @@ export function formatMessagePart(part: MessagePart): string {
  * tool events are rendered as concise strings suitable for large models.
  */
 export function storedChatMessageToModelMessage(m: StoredChatMessage): StoredChatMessage {
+  return storedChatMessageToSxmlModelMessage(m);
+}
+
+export function storedChatMessagesToModelMessages(messages: StoredChatMessage[], toolCallCompatible = false): StoredChatMessage[] {
+  return toolCallCompatible
+    ? messages.map(storedChatMessageToSxmlModelMessage)
+    : storedChatMessagesToOpenAIModelMessages(messages);
+}
+
+function storedChatMessagesToOpenAIModelMessages(messages: StoredChatMessage[]): StoredChatMessage[] {
+  const converted: StoredChatMessage[] = [];
+  for (const message of messages) {
+    const event = message.role === 'tool' ? parseToolEventContent(message.content) : undefined;
+    if (event?.type === 'tool_call') {
+      converted.push({
+        role: 'assistant',
+        content: null,
+        tool_calls: [{
+          id: event.call.call_id ?? '',
+          type: 'function',
+          function: {
+            name: event.call.name,
+            arguments: JSON.stringify(event.call.args)
+          }
+        }]
+      });
+      continue;
+    }
+    if (event?.type === 'tool_result') {
+      converted.push({
+        role: 'tool',
+        tool_call_id: event.call_id,
+        content: event.result.content
+      });
+      continue;
+    }
+    converted.push(storedChatMessageToSxmlModelMessage(message));
+  }
+  return converted;
+}
+
+function storedChatMessageToSxmlModelMessage(m: StoredChatMessage): StoredChatMessage {
   if (m.role === 'tool') {
     // try to normalize known tool event shapes
-    try {
-      const value: StoredChatMessage['content'] = typeof m.content === 'string' ? JSON.parse(m.content) : m.content;
-      if (value && typeof value === 'object' && 'type' in value) {
-        if (value.type === 'tool_call') {
-          return { role: 'tool', content: value._rawResponse || `<tool_call name="${value.call.name}">${JSON.stringify(value.call.args)}</tool_call>` };
-        }
-        if (value.type === 'tool_result') {
-          // const ok = value.result?.ok;
-          const content = value.result?.content;
-          return { role: 'user', content };
-        }
-        if (value.type === 'error') {
-          return { role: 'tool', content: String(value.message) };
-        }
-      }
-    } catch {
-      // fallthrough to string formatting
+    const value = parseToolEventContent(m.content);
+    if (value?.type === 'tool_call') {
+      return { role: 'tool', content: value._rawResponse || `<tool_call name="${value.call.name}">${JSON.stringify(value.call.args)}</tool_call>` };
+    }
+    if (value?.type === 'tool_result') {
+      // const ok = value.result?.ok;
+      const content = value.result?.content;
+      return { role: 'user', content };
+    }
+    if (value?.type === 'error') {
+      return { role: 'tool', content: String(value.message) };
     }
     return { role: 'tool', content: typeof m.content === 'string' ? m.content : formatStoredMessageContent(m.content) };
   }
   return { role: m.role, content: typeof m.content === 'string' ? m.content : formatStoredMessageContent(m.content) };
+}
+
+function parseToolEventContent(content: StoredChatMessage['content']): Extract<StoredChatMessage['content'], { type: string }> | undefined {
+  try {
+    const value: StoredChatMessage['content'] = typeof content === 'string' ? JSON.parse(content) : content;
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'type' in value) {
+      return value as Extract<StoredChatMessage['content'], { type: string }>;
+    }
+  } catch {
+    // fallthrough to undefined
+  }
+  return undefined;
 }
 
 export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage[] {

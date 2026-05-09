@@ -6,6 +6,168 @@ import { AgentEvent, ModelClient, ToolResult } from '@yaca/types/index.js';
 
 test('AgentLoop emits assistant text, executes tool calls, then asks model again', async () => {
   const responses = [
+    { content: 'Need file', toolCalls: [{ call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' }, rawResponse: 'call-1' }] },
+    { content: 'Done after tool', toolCalls: [] }
+  ];
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async completeWithTools(messages) {
+      if (responses.length === 1) {
+        const assistantMessage = messages.at(-2);
+        const toolMessage = messages.at(-1);
+        assert.equal(assistantMessage?.role, 'assistant');
+        assert.deepEqual(assistantMessage?.tool_calls, [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'read_file', arguments: '{"path":"a.txt"}' }
+        }]);
+        assert.equal(toolMessage?.role, 'tool');
+        assert.equal(toolMessage?.tool_call_id, 'call-1');
+      }
+      return responses.shift() ?? { content: '', toolCalls: [] };
+    }
+  };
+  const executed: string[] = [];
+  const tools = {
+    definitions() {
+      return [{ name: 'read_file', description: 'Read file', parameters: { path: 'file path' }, async execute() { return { ok: true, content: '' }; } }];
+    },
+    async execute(name: string): Promise<ToolResult> {
+      executed.push(name);
+      return { ok: true, content: 'file content' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 3, postponeToolCalls: 1 });
+
+  const events = await agent._run([{ role: 'user', content: 'read it' }]);
+
+  assert.deepEqual(executed, ['read_file']);
+  assert.deepEqual(events.map((event) => event.type), [
+    'assistant_text',
+    'tool_call',
+    'tool_result',
+    'assistant_text'
+  ]);
+});
+
+test('AgentLoop uses plain system prompt without XML tool instructions in default tool mode', async () => {
+  let systemPrompt = '';
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async completeWithTools(messages) {
+      systemPrompt = String(messages[0]?.content ?? '');
+      return { content: 'No tools needed', toolCalls: [] };
+    }
+  };
+  const tools = {
+    definitions() {
+      return [];
+    },
+    async execute(): Promise<ToolResult> {
+      return { ok: true, content: '' };
+    },
+    hint() {
+      return 'read_file: Read file';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+
+  await agent._run([{ role: 'user', content: 'hi' }]);
+
+  assert.doesNotMatch(systemPrompt, /<tool_call/);
+});
+
+test('AgentLoop streams OpenAI-compatible assistant text before executing tool calls', async () => {
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async completeWithTools() {
+      throw new Error('completeWithTools should not be used when streamWithTools is available');
+    },
+    async *streamWithTools() {
+      yield { type: 'content_delta' as const, text: 'Need ' };
+      yield { type: 'content_delta' as const, text: 'file' };
+      return {
+        content: 'Need file',
+        toolCalls: [{ call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' }, rawResponse: 'call-1' }]
+      };
+    }
+  };
+  const executed: string[] = [];
+  const tools = {
+    definitions() {
+      return [{ name: 'read_file', description: 'Read file', parameters: { path: 'file path' }, async execute() { return { ok: true, content: '' }; } }];
+    },
+    async execute(name: string): Promise<ToolResult> {
+      executed.push(name);
+      return { ok: true, content: 'file content' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const events: AgentEvent[] = [];
+
+  for await (const event of agent.runStream([{ role: 'user', content: 'read it' }])) {
+    events.push(event);
+  }
+
+  assert.deepEqual(executed, ['read_file']);
+  assert.deepEqual(events.map((event) => event.type), ['assistant_delta', 'assistant_delta', 'tool_call', 'tool_result']);
+  assert.deepEqual(events.slice(0, 2), [
+    { type: 'assistant_delta', text: 'Need ' },
+    { type: 'assistant_delta', text: 'file' }
+  ]);
+});
+
+test('AgentLoop streams OpenAI-compatible think deltas as assistant think events', async () => {
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async *streamWithTools() {
+      yield { type: 'think_delta' as const, text: 'checking ' };
+      yield { type: 'think_delta' as const, text: 'files' };
+      yield { type: 'content_delta' as const, text: 'Done' };
+      return { content: 'Done', toolCalls: [] };
+    }
+  };
+  const tools = {
+    definitions() {
+      return [];
+    },
+    async execute(): Promise<ToolResult> {
+      return { ok: true, content: '' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const events: AgentEvent[] = [];
+
+  for await (const event of agent.runStream([{ role: 'user', content: 'think' }])) {
+    events.push(event);
+  }
+
+  assert.deepEqual(events, [
+    { type: 'assistant_event', patch: { update: undefined, append: [{ type: 'think', content: 'checking ' }] } },
+    { type: 'assistant_event', patch: { update: { type: 'think', content: 'checking files' }, append: [] } },
+    { type: 'assistant_delta', text: 'Done' }
+  ]);
+});
+
+test('AgentLoop emits assistant text, executes sxml tool calls, then asks model again in compatible mode', async () => {
+  const responses = [
     'Need file <tool_call name="read_file">{"path":"a.txt"}</tool_call>',
     'Done after tool'
   ];
@@ -16,6 +178,9 @@ test('AgentLoop emits assistant text, executes tool calls, then asks model again
   };
   const executed: string[] = [];
   const tools = {
+    definitions() {
+      return [];
+    },
     async execute(name: string): Promise<ToolResult> {
       executed.push(name);
       return { ok: true, content: 'file content' };
@@ -24,7 +189,7 @@ test('AgentLoop emits assistant text, executes tool calls, then asks model again
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 3, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 3, postponeToolCalls: 1, toolCallCompatible: true });
 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
 
@@ -57,7 +222,7 @@ test('AgentLoop passes abort signal to the model client', async () => {
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1, toolCallCompatible: true });
 
   for await (const _event of agent.runStream([{ role: 'user', content: 'hi' }], { signal: controller.signal })) {
     // drain
@@ -81,7 +246,7 @@ test('AgentLoop stops silently when the model request is aborted', async () => {
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1, toolCallCompatible: true });
   const events: AgentEvent[] = [];
 
   for await (const event of agent.runStream([{ role: 'user', content: 'hi' }])) {
@@ -114,7 +279,7 @@ test('AgentLoop streams raw assistant text events before the model stream finish
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1, toolCallCompatible: true });
   const iterator = agent.runStream([{ role: 'user', content: 'hi' }])[Symbol.asyncIterator]();
 
   const first = await iterator.next();
@@ -145,7 +310,7 @@ test('AgentLoop streams tool calls as soon as sxml confirms the closing tag', as
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1, toolCallCompatible: true });
   const events: AgentEvent[] = [];
 
   for await (const event of agent.runStream([{ role: 'user', content: 'read it' }])) {
@@ -181,7 +346,7 @@ test('AgentLoop emits raw assistant events and links tool result by call_id', as
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 2, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 2, postponeToolCalls: 1, toolCallCompatible: true });
 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
   const toolCall = events
@@ -212,7 +377,7 @@ test('AgentLoop preserves raw tool call response on tool call events', async () 
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1, toolCallCompatible: true });
 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
   const toolCall = events.find((event) => event.type === 'tool_call');
@@ -243,7 +408,7 @@ test('AgentLoop returns malformed tool call JSON to the model as a tool result',
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 2, postponeToolCalls: 1 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 2, postponeToolCalls: 1, toolCallCompatible: true });
 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
   const parseResult = events.find((event) => event.type === 'tool_result');
@@ -274,7 +439,7 @@ test('AgentLoop stops the run after consecutive tool failures reach maxToolRetry
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 5, postponeToolCalls: 1, maxToolRetry: 2 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 5, postponeToolCalls: 1, maxToolRetry: 2, toolCallCompatible: true });
 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
 
@@ -308,7 +473,7 @@ test('AgentLoop resets consecutive tool failure count after a successful tool re
       return 'hint';
     }
   };
-  const agent = new AgentLoop({ model, tools, maxTurns: 6, postponeToolCalls: 1, maxToolRetry: 2 });
+  const agent = new AgentLoop({ model, tools, maxTurns: 6, postponeToolCalls: 1, maxToolRetry: 2, toolCallCompatible: true });
 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
 

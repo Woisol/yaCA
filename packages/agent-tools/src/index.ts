@@ -34,6 +34,10 @@ export class ToolRegistry {
     }
   }
 
+  definitions(): ToolDefinition[] {
+    return [...this.tools.values()];
+  }
+
   async execute(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) {

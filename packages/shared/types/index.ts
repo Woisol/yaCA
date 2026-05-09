@@ -16,7 +16,9 @@ export type MessagePart = TextPart | ImageUrlPart;
 
 export type ChatMessage = {
   role: MessageRole;
-  content: string | MessagePart[] | ToolEventContent;
+  content: string | MessagePart[] | ToolEventContent | null;
+  tool_call_id?: string;
+  tool_calls?: ChatToolCall[];
 };
 
 export type ToolCall = {
@@ -30,6 +32,15 @@ export type ToolResult = {
   content: string;
 };
 
+export type ChatToolCall = {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
 export type ToolEventContent =
   | { type: 'tool_call'; call: ToolCall; _rawResponse: string }
   | { type: 'tool_result'; call_id?: string; result: ToolResult }
@@ -40,6 +51,23 @@ export type ToolDefinition = {
   description: string;
   parameters: Record<string, string>;
   execute(args: Record<string, unknown>): Promise<ToolResult>;
+};
+
+export type ModelToolCall = ToolCall & {
+  rawResponse: string;
+};
+
+export type ModelToolResponse = {
+  content: string;
+  toolCalls: ModelToolCall[];
+};
+
+export type ModelToolStreamEvent = {
+  type: 'content_delta';
+  text: string;
+} | {
+  type: 'think_delta';
+  text: string;
 };
 
 export type AssistantEvent =
@@ -65,6 +93,8 @@ export type AgentEvent =
 export type ModelClient = {
   complete(messages: ChatMessage[], options?: ModelRequestOptions): Promise<string>;
   streamComplete?(messages: ChatMessage[], options?: ModelRequestOptions): AsyncIterable<string>;
+  completeWithTools?(messages: ChatMessage[], tools: ToolDefinition[], options?: ModelRequestOptions): Promise<ModelToolResponse>;
+  streamWithTools?(messages: ChatMessage[], tools: ToolDefinition[], options?: ModelRequestOptions): AsyncGenerator<ModelToolStreamEvent, ModelToolResponse>;
 };
 
 export type ModelRequestOptions = {

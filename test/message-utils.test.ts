@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { storedChatMessageToModelMessage, reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
+import { storedChatMessageToModelMessage, storedChatMessagesToModelMessages, reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
 
 test('stored tool parse error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'parse_tool_call', args: { content: '{}' } }, _rawResponse: '<tool_call name="parse_tool_call">{"content":"{}"}</tool_call>' } };
@@ -20,6 +20,40 @@ test('stored tool_result error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_result', call_id: 'call-1', result: { ok: false, content: 'Failed to parse' } } };
   const formatted = storedChatMessageToModelMessage(stored as any);
   assert.equal(String(formatted.content), 'Failed to parse');
+});
+
+test('storedChatMessagesToModelMessages converts persisted tool events to OpenAI tool history by default', () => {
+  const formatted = storedChatMessagesToModelMessages([
+    { role: 'user', content: 'read it' },
+    { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }, _rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>' } },
+    { role: 'tool', content: { type: 'tool_result', call_id: 'call-1', result: { ok: true, content: 'file content' } } }
+  ] as any);
+
+  assert.deepEqual(formatted, [
+    { role: 'user', content: 'read it' },
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [{
+        id: 'call-1',
+        type: 'function',
+        function: { name: 'read_file', arguments: '{"path":"a.txt"}' }
+      }]
+    },
+    { role: 'tool', tool_call_id: 'call-1', content: 'file content' }
+  ]);
+});
+
+test('storedChatMessagesToModelMessages keeps sxml history when compatible mode is enabled', () => {
+  const formatted = storedChatMessagesToModelMessages([
+    { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' } }, _rawResponse: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>' } },
+    { role: 'tool', content: { type: 'tool_result', call_id: 'call-1', result: { ok: true, content: 'file content' } } }
+  ] as any, true);
+
+  assert.deepEqual(formatted, [
+    { role: 'tool', content: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>' },
+    { role: 'user', content: 'file content' }
+  ]);
 });
 
 test('reduceMessageFile converts full file paths to relative paths in [File:path] format', () => {
