@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import type { MessagePart } from '@yaca/types';
+import { YACA_HOME } from '../constants/path.js';
 
 const imageMimeTypes = new Map([
   ['.jpg', 'image/jpeg'],
@@ -27,7 +28,7 @@ export async function parseUserInput(input: string, cwd = process.cwd(), options
       ? rawReference.slice(1, -1)
       : rawReference;
     const resolved = path.resolve(cwd, reference);
-    const imagePart = await tryCreateImagePart(resolved, options.yacaHome ?? process.env.YACA_HOME ?? path.join(homedir(), '.yaca'));
+    const imagePart = await tryCreateImagePart(resolved, options.yacaHome ?? YACA_HOME);
 
     if (!imagePart) {
       continue;

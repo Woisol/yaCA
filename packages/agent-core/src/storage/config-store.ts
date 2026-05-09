@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { YACA_HOME } from '../constants/path.js';
 
 export type YacaConfig = {
   model: string;
@@ -33,8 +34,8 @@ const defaultConfig: YacaConfig = {
 export class ConfigStore {
   private readonly configPath: string;
 
-  constructor(homeDirectory = path.join(homedir(), '.yaca')) {
-    this.configPath = path.join(process.env.YACA_HOME ?? homeDirectory, 'config.json');
+  constructor(homeDirectory?: string) {
+    this.configPath = path.join(homeDirectory ?? YACA_HOME, 'config.json');
   }
 
   async load(): Promise<YacaConfig> {

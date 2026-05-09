@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import type { ChatMessage } from '@yaca/types';
+import { YACA_HOME } from '../constants/path.js';
 
 const writeQueues = new Map<string, Promise<unknown>>();
 
@@ -26,7 +27,7 @@ export class SessionStore {
   private readonly projectHash: string;
 
   constructor(options: { homeDirectory?: string; workspace?: string } = {}) {
-    const homeDirectory = options.homeDirectory ?? process.env.YACA_HOME ?? path.join(homedir(), '.yaca');
+    const homeDirectory = options.homeDirectory ?? YACA_HOME;
     this.root = path.resolve(homeDirectory);
     this.workspace = path.resolve(options.workspace ?? process.cwd());
     this.projectHash = createHash('sha256').update(this.workspace).digest('hex').slice(0, 16);
