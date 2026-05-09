@@ -5,6 +5,7 @@ import { AgentLoop, ConfigStore, createModelClient, parseUserInput, SessionStore
 import { createDefaultToolRegistry } from '@yaca/agent-tools';
 import { startServer } from '@yaca/web/server.js';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
+import { IS_DEV } from '../packages/shared/constants/dev.js';
 
 type CliArgs = {
   serve?: number;
@@ -14,7 +15,7 @@ type CliArgs = {
 };
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
-  loadEnvFile();
+  if (IS_DEV) loadEnvFile();
 
   const args = parseArgs(argv);
   const configStore = new ConfigStore();

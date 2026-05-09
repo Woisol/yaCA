@@ -35,6 +35,10 @@
       "args": [
         "${workspaceFolder}\\apps\\index.ts"
       ],
+      "env": {
+        "DEBUG": "true",
+        "NODE_ENV": "development"
+      },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "cwd": "${workspaceFolder}"
@@ -44,7 +48,7 @@
       "request": "launch",
       "name": "cli",
       // 默认值 internalConsole 不支持读取输入
-      "console": "integratedTerminal",
+      "console": "externalTerminal",
       "skipFiles": [
         "<node_internals>/**"
       ],
@@ -55,7 +59,8 @@
       ],
       "args": [],
       "env": {
-        "DEBUG": "true"
+        "DEBUG": "true",
+        "NODE_ENV": "development"
       }
     },
   ]
