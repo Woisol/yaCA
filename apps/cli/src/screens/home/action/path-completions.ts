@@ -1,5 +1,7 @@
+import { pathPrefferentiallyRelative } from '@yaca/utils/path.js';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
+
 
 export type PathCompletionItem = {
   value: string;
@@ -101,6 +103,7 @@ function toCompletionValue(value: string, isDirectory: boolean): string {
 function toDisplayPath(value: string, cwd: string): string {
   const suffix = value.endsWith('/') ? '/' : '';
   const absolute = path.resolve(cwd, value);
-  const relative = path.relative(cwd, absolute).replaceAll('\\', '/');
+  const chosen = pathPrefferentiallyRelative(absolute, cwd);
+  const relative = String(chosen).replaceAll('\\', '/');
   return `${relative || path.basename(value)}${suffix}`;
 }

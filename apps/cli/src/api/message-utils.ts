@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { ChatMessage as StoredChatMessage, MessagePart } from '@yaca/types';
+import { pathPrefferentiallyRelative } from '@yaca/utils/path.js';
 
 export function formatStoredMessageContent(content: StoredChatMessage['content']): string {
   if (typeof content === 'string') return content;
@@ -75,26 +76,20 @@ export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage
 export function reduceMessageFile(rawMessage: string): string {
   const filePattern = /\n\n\[File: (.+?)\]\n[\s\S]*?\[End of File\]\n\n/g;
   return rawMessage.replace(filePattern, (_match, filePath: string) => {
-    const relativePath = path.relative(process.cwd(), filePath);
-    // 只有当文件在当前目录下层（不包含 ..）时才使用相对路径
-    if (!relativePath.startsWith('..')) {
-      return `[File:${relativePath}]`;
-    }
-    return `[File:${filePath}]`;
+    const chosen = pathPrefferentiallyRelative(filePath);
+    return `[File:${chosen}]`;
   });
 }
 
 export function reduceMessageFileToPathMention(rawMessage: string): string {
   const withoutFileContent = rawMessage.replace(/\n\n\[File: (.+?)\]\n[\s\S]*?\[End of File\]\n\n/g, (_match, filePath: string) => {
     const fp = filePath.trim();
-    const relativePath = path.relative(process.cwd(), fp);
-    const chosen = !relativePath.startsWith('..') ? relativePath : fp;
+    const chosen = pathPrefferentiallyRelative(fp);
     return `@${formatPathMention(chosen)}`;
   });
   return withoutFileContent.replace(/\n\n\[File:([^\]]+)\]\n\n/g, (_match, filePath: string) => {
     const fp = filePath.trim();
-    const relativePath = path.relative(process.cwd(), fp);
-    const chosen = !relativePath.startsWith('..') ? relativePath : fp;
+    const chosen = pathPrefferentiallyRelative(fp);
     return `@${formatPathMention(chosen)}`;
   });
 }

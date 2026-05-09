@@ -27,7 +27,7 @@ test('parseUserInput keeps unresolved @path references as text', async () => {
   assert.deepEqual(parts, [{ type: 'text', text: 'open @missing.png now' }]);
 });
 
-test('parseUserInput reads local text file @path references as text parts', async () => {
+test('parseUserInput reads local text file @path references as file-marked text', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
   const filePath = path.join(directory, 'notes.md');
   await writeFile(filePath, '# Notes\n\nRead this.', 'utf8');

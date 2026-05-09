@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import type { MessagePart } from '@yaca/types';
 import { YACA_HOME } from '../constants/path.js';
+import { pathPrefferentiallyRelative } from '@yaca/utils/path.js';
 
 const imageMimeTypes = new Map([
   ['.jpg', 'image/jpeg'],
@@ -33,14 +34,13 @@ export async function parseUserInput(input: string, cwd = process.cwd(), options
     // path.resolve 处理绝对/相对路径✅
     // If {to} isn't already absolute, {from} arguments are prepended in right to left order, until an absolute path is found.
     const resolved = path.resolve(cwd, reference);
+    // const path = pathPrefferentiallyRelative(reference, cwd);
     const filePart = await tryCreateFilePart(resolved, options.yacaHome ?? YACA_HOME);
 
     if (!filePart) {
       continue;
     }
 
-
-    // 拆分文本和文件引用放回 parts
     const text = input.slice(cursor, match.index);
     if (text.length > 0) {
       parts.push({ type: 'text', text });
@@ -68,7 +68,7 @@ async function tryCreateFilePart(filePath: string, yacaHome: string): Promise<Me
   }
 
   return await tryCreateImagePart(filePath, yacaHome)
-    ?? { type: 'text', text: await readFileWithMeta(filePath, 'utf8') };
+    ?? { type: 'text', text: await readFileWithMeta(pathPrefferentiallyRelative(filePath), 'utf8') };
 }
 
 async function tryCreateImagePart(filePath: string, yacaHome: string): Promise<MessagePart | undefined> {

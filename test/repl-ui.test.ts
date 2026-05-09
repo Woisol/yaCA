@@ -188,7 +188,7 @@ test('applyRewindSelection trims to before selected user message and restores it
   });
 });
 
-test('applyRewindSelection restores reduced file markers as @path references', () => {
+test('applyRewindSelection leaves inline reduced file markers unchanged', () => {
   const current = [
     { kind: 'user' as const, text: 'summarize [File:src/index.ts]' },
     { kind: 'assistant' as const, text: 'answer' }

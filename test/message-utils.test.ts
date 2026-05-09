@@ -44,18 +44,25 @@ test('reduceMessageFile handles multiple file references with blank line delimit
   assert.equal(reduced, `[File:src${path.sep}index.ts][File:test${path.sep}setup.ts]`);
 });
 
-test('reduceMessageFileToPathMention converts reduced file markers back to @path references', () => {
+test('reduceMessageFileToPathMention keeps inline reduced file markers unchanged', () => {
   const rawMessage = `summarize [File:src${path.sep}index.ts] and [File:test${path.sep}setup.ts]`;
   const restored = reduceMessageFileToPathMention(rawMessage);
 
   assert.equal(restored, `summarize [File:src${path.sep}index.ts] and [File:test${path.sep}setup.ts]`);
 });
 
-test('reduceMessageFileToPathMention quotes paths with spaces', () => {
+test('reduceMessageFileToPathMention keeps inline reduced file markers with spaces unchanged', () => {
   const rawMessage = `[File:docs${path.sep}my note.md]`;
   const restored = reduceMessageFileToPathMention(rawMessage);
 
   assert.equal(restored, `[File:docs${path.sep}my note.md]`);
+});
+
+test('reduceMessageFileToPathMention converts reduced file blocks with spaces back to quoted @path references', () => {
+  const rawMessage = `\n\n[File: docs${path.sep}my note.md]\ncontent\n[End of File]\n\n`;
+  const restored = reduceMessageFileToPathMention(rawMessage);
+
+  assert.equal(restored, `@"docs${path.sep}my note.md"`);
 });
 
 test('reduceMessageFileToPathMention converts full file blocks back to @path references', () => {

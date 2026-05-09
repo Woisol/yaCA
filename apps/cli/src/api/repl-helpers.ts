@@ -25,6 +25,7 @@ export async function runAgentTurn(
   if (!runtime.state.sessionId) {
     runtime.state.sessionId = (await runtime.store.createSession(text.slice(0, 80))).id;
   }
+  // 在外面已经 parseUserInput 一次了这里还😅
   const content = options.userContent ?? await parseUserInput(text, runtime.cwd);
   await runtime.store.appendMessage(runtime.state.sessionId, { role: 'user', content });
   const assistantEvents: YacaSxmlEvent[] = [];
