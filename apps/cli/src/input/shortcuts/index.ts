@@ -20,6 +20,7 @@ export type ReplShortcutContext = {
   setLastEscapeAt: Dispatch<SetStateAction<number>>;
   shortcutsEnabled?: boolean;
   appendLine(kind: MessageKind, text: string): void;
+  preserveInputAfterShortcut?(): void;
   toggleToolOutput(): void;
   openRewind(): void;
   openResume(): void;
@@ -48,20 +49,8 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       name: 'toggle-tool-output',
       match: (input, key) => key.ctrl && input === 'o',
       run: (context) => {
+        context.preserveInputAfterShortcut?.();
         context.toggleToolOutput();
-      }
-    },
-    {
-      name: 'submit-input',
-      match: (_input, key) => key.return,
-      run: (context) => {
-        const submitted = context.input.trim();
-        context.setInput('');
-        context.setUserMessageHistoryIndex(null);
-        context.setUserMessageDraft('');
-        if (submitted.length > 0) {
-          context.submit(submitted);
-        }
       }
     },
     {
@@ -115,15 +104,8 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       name: 'clipboard-image-hint',
       match: (input, key) => key.ctrl && input === 'v',
       run: (context) => {
+        context.preserveInputAfterShortcut?.();
         context.appendLine('status', 'Clipboard image paste stores images as @path references when terminal clipboard image data is available.');
-      }
-    },
-    {
-      name: 'delete-character',
-      match: (_input, key) => key.backspace || key.delete,
-      run: (context) => {
-        context.setInput((current) => current.slice(0, -1));
-        context.setUserMessageHistoryIndex(null);
       }
     },
     {
@@ -139,13 +121,5 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
         }
       }
     },
-    {
-      name: 'append-input',
-      match: (input) => input.length > 0,
-      run: (context, input) => {
-        context.setInput((current) => current + input);
-        context.setUserMessageHistoryIndex(null);
-      }
-    }
   ];
 }

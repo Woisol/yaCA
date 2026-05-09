@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Box, render, Text, useApp } from 'ink';
 import { handleBuiltinCommand, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
 import type { AgentEvent } from '@yaca/types';
+import { preserveInputAfterCurrentKeypress } from '../input/preserve.js';
 import { useKeyboardShortcuts } from '../input/registry.js';
 import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
 import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
@@ -98,6 +99,9 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     setLastCtrlCAt,
     setLastEscapeAt,
     appendLine,
+    preserveInputAfterShortcut: () => {
+      preserveInputAfterCurrentKeypress(input, setInput);
+    },
     toggleToolOutput: () => {
       setShowToolOutput((current) => {
         const next = !current;
@@ -117,6 +121,21 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     exit
   };
   useKeyboardShortcuts(shortcutContext, shortcuts);
+
+  function updateInput(value: string | ((current: string) => string)): void {
+    setInput((current) => typeof value === 'function' ? value(current) : value);
+    setUserMessageHistoryIndex(null);
+  }
+
+  function submitInput(text: string): void {
+    const submitted = text.trim();
+    setInput('');
+    setUserMessageHistoryIndex(null);
+    setUserMessageDraft('');
+    if (submitted.length > 0) {
+      void submit(submitted);
+    }
+  }
 
   async function submit(text: string): Promise<void> {
     appendLine('user', text);
@@ -199,7 +218,12 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
       ) : (
         <>
             <ChatArea messages={messages} hasSession={!!runtime.state.sessionId} />
-            <Input input={input} />
+            <Input
+              focus={!busy && !(showRewind || showResume)}
+              input={input}
+              setInput={updateInput}
+              onSubmit={submitInput}
+            />
             <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} />
         </>
       )}

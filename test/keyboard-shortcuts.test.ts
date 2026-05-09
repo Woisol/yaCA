@@ -80,7 +80,7 @@ test('dispatchShortcutInput skips shortcuts when their guard is false', () => {
   assert.deepEqual(events, ['fallback']);
 });
 
-test('createReplShortcuts submits trimmed input on return', () => {
+test('createReplShortcuts leaves return for the text input component', () => {
   const submitted: string[] = [];
   const context = createContext({
     input: '  hello  ',
@@ -91,9 +91,9 @@ test('createReplShortcuts submits trimmed input on return', () => {
 
   const handled = dispatchShortcutInput(createReplShortcuts(), '', key({ return: true }), context);
 
-  assert.equal(handled, true);
-  assert.equal(context.input, '');
-  assert.deepEqual(submitted, ['hello']);
+  assert.equal(handled, false);
+  assert.equal(context.input, '  hello  ');
+  assert.deepEqual(submitted, []);
 });
 
 test('createReplShortcuts ignores non-interrupt input while busy', () => {
@@ -127,19 +127,23 @@ test('createReplShortcuts requires two ctrl+c presses to exit when idle', () => 
   assert.deepEqual(context.messages, ['Press Ctrl+C again to exit.']);
 });
 
-test('createReplShortcuts appends typed input and deletes one character', () => {
+test('createReplShortcuts leaves editing keys for the text input component', () => {
   const context = createContext({ input: 'ab' });
   const shortcuts = createReplShortcuts();
 
-  dispatchShortcutInput(shortcuts, 'c', key({}), context);
-  dispatchShortcutInput(shortcuts, '', key({ backspace: true }), context);
-
+  assert.equal(dispatchShortcutInput(shortcuts, 'c', key({}), context), false);
+  assert.equal(dispatchShortcutInput(shortcuts, '', key({ backspace: true }), context), false);
+  assert.equal(dispatchShortcutInput(shortcuts, '', key({ delete: true }), context), false);
   assert.equal(context.input, 'ab');
 });
 
 test('createReplShortcuts toggles tool output on ctrl+o', () => {
   let toggled = false;
+  let preserved = false;
   const context = createContext({
+    preserveInputAfterShortcut() {
+      preserved = true;
+    },
     toggleToolOutput() {
       toggled = true;
     }
@@ -149,6 +153,22 @@ test('createReplShortcuts toggles tool output on ctrl+o', () => {
 
   assert.equal(handled, true);
   assert.equal(toggled, true);
+  assert.equal(preserved, true);
+});
+
+test('createReplShortcuts preserves input on ctrl+v hint', () => {
+  let preserved = false;
+  const context = createContext({
+    preserveInputAfterShortcut() {
+      preserved = true;
+    }
+  });
+
+  const handled = dispatchShortcutInput(createReplShortcuts(), 'v', key({ ctrl: true }), context);
+
+  assert.equal(handled, true);
+  assert.equal(preserved, true);
+  assert.deepEqual(context.messages, ['Clipboard image paste stores images as @path references when terminal clipboard image data is available.']);
 });
 
 test('createReplShortcuts opens rewind on double escape', () => {

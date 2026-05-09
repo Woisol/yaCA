@@ -1,10 +1,27 @@
-import { Box, Text } from "ink";
+import type { Dispatch, SetStateAction } from 'react';
+import { Box, Text } from 'ink';
+import TextInput from 'ink-text-input';
 
-export function Input({ input }: { input: string }) {
+type InputProps = {
+  input: string;
+  focus?: boolean;
+  setInput: Dispatch<SetStateAction<string>>;
+  onSubmit(text: string): void;
+};
+
+export function Input({ input, focus = true, setInput, onSubmit }: InputProps) {
   const isEmpty = input.length === 0;
   return (
-    <Box borderColor={isEmpty ? "grey" : "white"} borderStyle="round" paddingX={1}>
+    <Box borderColor={isEmpty ? 'grey' : 'white'} borderStyle="round" paddingX={1}>
       <Text color="cyan">yaca&gt; </Text>
-      <Text color={isEmpty ? "grey" : "white"}>{isEmpty ? "Enter something creative..." : input}</Text>
+      <TextInput
+        focus={focus}
+        highlightPastedText
+        placeholder="Enter something creative..."
+        showCursor
+        value={input}
+        onChange={setInput}
+        onSubmit={onSubmit}
+      />
     </Box>);
 }
