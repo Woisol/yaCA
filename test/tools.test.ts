@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, stat, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -146,4 +146,70 @@ test('confirm approval mode delegates each tool call to callback', async () => {
   assert.equal(result.ok, false);
   assert.match(result.content, /denied/i);
   assert.deepEqual(calls, ['read_file']);
+});
+
+test('stat_path returns file info', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  await writeFile(path.join(workspace, 'note.txt'), 'hello');
+  const tools = createDefaultToolRegistry(workspace);
+
+  const result = await tools.execute('stat_path', { path: 'note.txt' });
+
+  assert.equal(result.ok, true);
+  const info = JSON.parse(result.content);
+  assert.equal(info.isFile, true);
+  assert.equal(info.isDirectory, false);
+  assert.equal(info.size, 5);
+});
+
+test('move_file renames a file and refuses overwrite unless dangerouslyOverride is true', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  const source = path.join(workspace, 'a.txt');
+  const destination = path.join(workspace, 'b.txt');
+  await writeFile(source, 'content a');
+  await writeFile(destination, 'content b');
+  const tools = createDefaultToolRegistry(workspace);
+
+  const refused = await tools.execute('move_file', { source: 'a.txt', destination: 'b.txt' });
+  assert.equal(refused.ok, false);
+  assert.match(refused.content, /Destination already exists/);
+
+  const moved = await tools.execute('move_file', {
+    source: 'a.txt',
+    destination: 'b.txt',
+    dangerouslyOverride: true
+  });
+
+  assert.equal(moved.ok, true);
+  const newContent = await readFile(destination, 'utf8');
+  assert.equal(newContent, 'content a');
+
+  await assert.rejects(access(source), /ENOENT/);
+});
+
+test('remove_file removes a file and refuses outside workspace unless dangerouslyRemoveOutsideOfWorkspace is true', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  const outside = await mkdtemp(path.join(tmpdir(), 'yaca-outside-'));
+  const targetOutside = path.join(outside, 'note.txt');
+  const targetInside = path.join(workspace, 'note.txt');
+
+  await writeFile(targetOutside, 'outside');
+  await writeFile(targetInside, 'inside');
+
+  const tools = createDefaultToolRegistry(workspace);
+
+  const refused = await tools.execute('remove_file', { path: targetOutside });
+  assert.equal(refused.ok, false);
+  assert.match(refused.content, /Refusing to remove path outside of workspace/);
+
+  const removedOutside = await tools.execute('remove_file', {
+    path: targetOutside,
+    dangerouslyRemoveOutsideOfWorkspace: true
+  });
+  assert.equal(removedOutside.ok, true);
+  await assert.rejects(access(targetOutside), /ENOENT/);
+
+  const removedInside = await tools.execute('remove_file', { path: 'note.txt' });
+  assert.equal(removedInside.ok, true);
+  await assert.rejects(access(targetInside), /ENOENT/);
 });

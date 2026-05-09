@@ -15,9 +15,9 @@ export function readRange(args: Record<string, unknown>): TextRange | undefined 
   }
   return {
     startLineNumber: startLineNumber ?? 1,
-    startColumn: readOptionalNumber(args.startColumn) ?? 1,
+    startColumn: readOptionalNumber(args.startColumn) ?? 0,
     endLineNumber: endLineNumber ?? startLineNumber ?? 1,
-    endColumn: readOptionalNumber(args.endColumn) ?? Number.MAX_SAFE_INTEGER
+    endColumn: readOptionalNumber(args.endColumn) ?? 0
   };
 }
 
