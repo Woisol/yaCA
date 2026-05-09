@@ -106,13 +106,20 @@ test('createReplShortcuts ignores non-interrupt input while busy', () => {
 });
 
 test('createReplShortcuts handles ctrl+c as interrupt before exit while busy', () => {
-  const context = createContext({ busy: true });
+  let aborted = false;
+  const context = createContext({
+    busy: true,
+    abortCurrentTurn() {
+      aborted = true;
+    }
+  });
 
   dispatchShortcutInput(createReplShortcuts(), 'c', key({ ctrl: true }), context);
 
   assert.equal(context.busy, false);
+  assert.equal(aborted, true);
   assert.equal(context.exited, false);
-  assert.deepEqual(context.messages, ['Interrupted current operation. The in-flight model request may still finish server-side.']);
+  assert.deepEqual(context.messages, ['Interrupted current operation.']);
 });
 
 test('createReplShortcuts requires two ctrl+c presses to exit when idle', () => {

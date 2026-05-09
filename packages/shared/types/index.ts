@@ -63,6 +63,10 @@ export type AgentEvent =
   | { type: 'error'; message: string };
 
 export type ModelClient = {
-  complete(messages: ChatMessage[]): Promise<string>;
-  streamComplete?(messages: ChatMessage[]): AsyncIterable<string>;
+  complete(messages: ChatMessage[], options?: ModelRequestOptions): Promise<string>;
+  streamComplete?(messages: ChatMessage[], options?: ModelRequestOptions): AsyncIterable<string>;
+};
+
+export type ModelRequestOptions = {
+  signal?: AbortSignal;
 };

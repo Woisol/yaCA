@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Box, render, Text, useApp, type RenderOptions } from 'ink';
 import { handleBuiltinCommand, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
 import type { AgentEvent } from '@yaca/types';
@@ -71,6 +71,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [showRewind, setShowRewind] = useState(false);
   const [showResume, setShowResume] = useState(false);
   const [resumeSessions, setResumeSessions] = useState<SessionMeta[]>([]);
+  const activeTurnControllerRef = useRef<AbortController | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
   ]);
@@ -103,6 +104,9 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     setLastCtrlCAt,
     setLastEscapeAt,
     appendLine,
+    abortCurrentTurn: () => {
+      activeTurnControllerRef.current?.abort();
+    },
     preserveInputAfterShortcut: () => {
       preserveInputAfterCurrentKeypress(input, setInput);
     },
@@ -150,7 +154,15 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
         await handleSlashCommand(trimmed);
         return;
       }
-      await runAgentTurn(text, runtime, appendLine, setMessages, showToolOutput);
+      const controller = new AbortController();
+      activeTurnControllerRef.current = controller;
+      try {
+        await runAgentTurn(text, runtime, appendLine, setMessages, showToolOutput, { signal: controller.signal });
+      } finally {
+        if (activeTurnControllerRef.current === controller) {
+          activeTurnControllerRef.current = null;
+        }
+      }
     } catch (error) {
       appendLine('error', formatError(error));
     } finally {

@@ -19,7 +19,8 @@ export async function runAgentTurn(
   runtime: { cwd: string; state: CliState; store: SessionStore; createAgent(): AgentLoop },
   appendLine: (kind: string, text: string) => void,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  showToolOutput: boolean
+  showToolOutput: boolean,
+  options: { signal?: AbortSignal } = {}
 ): Promise<void> {
   if (!runtime.state.sessionId) {
     runtime.state.sessionId = (await runtime.store.createSession(text.slice(0, 80))).id;
@@ -31,7 +32,7 @@ export async function runAgentTurn(
   const storedHistory = await runtime.store.readMessages(runtime.state.sessionId);
   const initialMessages = storedHistory.map(storedChatMessageToModelMessage);
 
-  for await (const event of runtime.createAgent().runStream(initialMessages)) {
+  for await (const event of runtime.createAgent().runStream(initialMessages, { signal: options.signal })) {
     if (event.type === 'assistant_delta') {
       continue;
     } else if (event.type === 'assistant_replace') {

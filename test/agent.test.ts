@@ -40,6 +40,57 @@ test('AgentLoop emits assistant text, executes tool calls, then asks model again
   ]);
 });
 
+test('AgentLoop passes abort signal to the model client', async () => {
+  const controller = new AbortController();
+  let modelSignal: AbortSignal | undefined;
+  const model: ModelClient = {
+    async complete(_messages, options) {
+      modelSignal = options?.signal;
+      return 'hello';
+    }
+  };
+  const tools = {
+    async execute(): Promise<ToolResult> {
+      return { ok: true, content: '' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+
+  for await (const _event of agent.runStream([{ role: 'user', content: 'hi' }], { signal: controller.signal })) {
+    // drain
+  }
+
+  assert.equal(modelSignal, controller.signal);
+});
+
+test('AgentLoop stops silently when the model request is aborted', async () => {
+  const abortError = new DOMException('This operation was aborted', 'AbortError');
+  const model: ModelClient = {
+    async complete() {
+      throw abortError;
+    }
+  };
+  const tools = {
+    async execute(): Promise<ToolResult> {
+      return { ok: true, content: '' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1 });
+  const events: AgentEvent[] = [];
+
+  for await (const event of agent.runStream([{ role: 'user', content: 'hi' }])) {
+    events.push(event);
+  }
+
+  assert.deepEqual(events, []);
+});
+
 test('AgentLoop streams raw assistant text events before the model stream finishes', async () => {
   let releaseSecondChunk: (() => void) | undefined;
   const secondChunkReady = new Promise<void>((resolve) => {

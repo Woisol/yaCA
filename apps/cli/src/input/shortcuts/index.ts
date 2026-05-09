@@ -21,6 +21,7 @@ export type ReplShortcutContext = {
   setLastEscapeAt: Dispatch<SetStateAction<number>>;
   shortcutsEnabled?: boolean;
   appendLine(kind: MessageKind, text: string): void;
+  abortCurrentTurn?(): void;
   preserveInputAfterShortcut?(): void;
   toggleToolOutput(): void;
   openRewind(): void;
@@ -36,7 +37,8 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       when: (context) => context.busy,
       match: (input, key) => key.ctrl && input === 'c',
       run: (context) => {
-        context.appendLine('status', 'Interrupted current operation. The in-flight model request may still finish server-side.');
+        context.abortCurrentTurn?.();
+        context.appendLine('status', 'Interrupted current operation.');
         context.setBusy(false);
       }
     },

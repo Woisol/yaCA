@@ -1,6 +1,7 @@
 import type { AgentEvent, AssistantEvent, ChatMessage, ModelClient, ToolCall, ToolResult } from '@yaca/types';
 import { applySxmlPatch, collectAssistantText, createYacaSxmlParser, endAndDrain, writeAndDrain, type YacaSxmlEvent, type YacaSxmlPatch } from './parser/sxml-adapter.js';
 import { Logger } from '@yaca/utils/logger.js';
+import { buildSystemPrompt } from './llm/model-client.js';
 
 type ToolExecutor = {
   execute(name: string, args: Record<string, unknown>): Promise<ToolResult>;
@@ -12,6 +13,10 @@ type StreamTurnResult = {
   calls: PendingToolCall[];
   parseFailures: ToolFailureCall[];
   stopped: boolean;
+};
+
+type AgentRunOptions = {
+  signal?: AbortSignal;
 };
 
 type PendingToolCall = ToolCall & {
@@ -60,7 +65,7 @@ export class AgentLoop {
     return events;
   }
 
-  async *runStream(initialMessages: ChatMessage[]): AsyncIterable<AgentEvent> {
+  async *runStream(initialMessages: ChatMessage[], options: AgentRunOptions = {}): AsyncIterable<AgentEvent> {
     const messages: ChatMessage[] = [
       { role: 'system', content: buildSystemPrompt(this.tools.hint()) },
       ...initialMessages
@@ -68,7 +73,7 @@ export class AgentLoop {
     let consecutiveToolFailures = 0;
 
     for (let turn = 0; turn < this.maxTurns; turn += 1) {
-      const turnResult = yield* this.streamAssistantTurn(messages);
+      const turnResult = yield* this.streamAssistantTurn(messages, options);
       if (turnResult.stopped) break;
 
       messages.push({ role: 'assistant', content: turnResult.response });
@@ -102,7 +107,7 @@ export class AgentLoop {
     }
   }
 
-  private async *streamAssistantTurn(messages: ChatMessage[]): AsyncGenerator<AgentEvent, StreamTurnResult> {
+  private async *streamAssistantTurn(messages: ChatMessage[], options: AgentRunOptions): AsyncGenerator<AgentEvent, StreamTurnResult> {
     const parser = createYacaSxmlParser();
     const parsedEvents: YacaSxmlEvent[] = [];
     const calls: PendingToolCall[] = [];
@@ -110,7 +115,7 @@ export class AgentLoop {
     let response = '';
 
     try {
-      for await (const chunk of this.readModelChunks(messages)) {
+      for await (const chunk of this.readModelChunks(messages, options)) {
         response += chunk;
         for (const patch of writeAndDrain(parser, chunk)) {
           const normalizedPatch = assignPatchCallIds(patch, () => this.createCallId());
@@ -130,17 +135,20 @@ export class AgentLoop {
       }
       return { response, calls, parseFailures, stopped: false };
     } catch (error) {
+      if (isAbortError(error)) {
+        return { response, calls, parseFailures, stopped: true };
+      }
       yield { type: 'error', message: `Model request failed: ${formatError(error)}` };
       return { response, calls, parseFailures, stopped: true };
     }
   }
 
-  private async *readModelChunks(messages: ChatMessage[]): AsyncIterable<string> {
+  private async *readModelChunks(messages: ChatMessage[], options: AgentRunOptions): AsyncIterable<string> {
     if (this.model.streamComplete) {
-      yield* this.model.streamComplete(messages);
+      yield* this.model.streamComplete(messages, options);
       return;
     }
-    yield await this.model.complete(messages);
+    yield await this.model.complete(messages, options);
   }
 
   private createCallId(): string {
@@ -209,16 +217,11 @@ function assignEventCallId(event: AssistantEvent, createCallId: () => string): A
   return { ...event, call_id: createCallId() };
 }
 
-function buildSystemPrompt(toolHint: string): string {
-  return [
-    'You are YACA, a local coding agent running in a terminal.',
-    'Markdown render is not supported, so use plain text to respond unless requested.',
-    'When you need a tool, emit exactly: <tool_call name="tool_name">{"arg":"value"}</tool_call>.',
-    'Available tools:',
-    toolHint
-  ].join('\n\n');
-}
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
 }

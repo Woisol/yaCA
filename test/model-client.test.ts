@@ -27,6 +27,23 @@ test('OpenAICompatibleClient completes chat through POST request', async () => {
   });
 });
 
+test('OpenAICompatibleClient passes abort signal to non-streaming fetch', async () => {
+  const controller = new AbortController();
+  let requestSignal: AbortSignal | undefined;
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    requestSignal = init?.signal ?? undefined;
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'hello' } }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  };
+  const client = new OpenAICompatibleClient({ baseUrl: 'http://local/v1', model: 'local-model', fetchImpl });
+
+  await client.complete([{ role: 'user', content: 'hi' }], { signal: controller.signal });
+
+  assert.equal(requestSignal, controller.signal);
+});
+
 test('OpenAICompatibleClient streams chat chunks through response.body.getReader', async () => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -51,6 +68,25 @@ test('OpenAICompatibleClient streams chat chunks through response.body.getReader
   }
 
   assert.deepEqual(chunks, ['he', 'llo']);
+});
+
+test('OpenAICompatibleClient passes abort signal to streaming fetch', async () => {
+  const controller = new AbortController();
+  let requestSignal: AbortSignal | undefined;
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    requestSignal = init?.signal ?? undefined;
+    return new Response(null, {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' }
+    });
+  };
+  const client = new OpenAICompatibleClient({ baseUrl: 'http://local/v1', model: 'local-model', fetchImpl });
+
+  for await (const _chunk of client.streamComplete([{ role: 'user', content: 'hi' }], { signal: controller.signal })) {
+    // drain
+  }
+
+  assert.equal(requestSignal, controller.signal);
 });
 
 test('OpenAICompatibleClient omits authorization header when no api key is configured', () => {

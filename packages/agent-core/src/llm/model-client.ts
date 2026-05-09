@@ -1,4 +1,4 @@
-import type { ChatMessage, ModelClient } from '@yaca/types';
+import type { ChatMessage, ModelClient, ModelRequestOptions } from '@yaca/types';
 
 type ChatCompletionMessageParam = {
   role: ChatMessage['role'];
@@ -41,12 +41,12 @@ export class OpenAICompatibleClient implements ModelClient {
     return { headers: options.apiKey ? {} : { Authorization: null } };
   }
 
-  async complete(messages: ChatMessage[]): Promise<string> {
-    const completion = await this.postJson<ChatCompletionResponse>({ model: this.model, messages: toOpenAIMessages(messages), stream: false });
+  async complete(messages: ChatMessage[], options: ModelRequestOptions = {}): Promise<string> {
+    const completion = await this.postJson<ChatCompletionResponse>({ model: this.model, messages: toOpenAIMessages(messages), stream: false }, options);
     return completion.choices?.[0]?.message?.content ?? '';
   }
 
-  async *streamComplete(messages: ChatMessage[]): AsyncIterable<string> {
+  async *streamComplete(messages: ChatMessage[], options: ModelRequestOptions = {}): AsyncIterable<string> {
     const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -57,7 +57,8 @@ export class OpenAICompatibleClient implements ModelClient {
         model: this.model,
         messages: toOpenAIMessages(messages),
         stream: true
-      })
+      }),
+      signal: options.signal
     });
 
     if (!response.ok) {
@@ -95,14 +96,15 @@ export class OpenAICompatibleClient implements ModelClient {
     }
   }
 
-  private async postJson<T>(body: { model: string; messages: ChatCompletionMessageParam[]; stream: false }): Promise<T> {
+  private async postJson<T>(body: { model: string; messages: ChatCompletionMessageParam[]; stream: false }, options: ModelRequestOptions): Promise<T> {
     const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         ...this.headers
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: options.signal
     });
 
     if (!response.ok) {
@@ -149,4 +151,15 @@ function parseChunk(line: string): ChatCompletionChunk | '[DONE]' | undefined {
   } catch {
     return undefined;
   }
+}
+
+
+export function buildSystemPrompt(toolHint: string): string {
+  return [
+    'You are yaCA, a local coding agent running in a terminal.',
+    'Markdown render is not supported, so use plain text to respond unless requested.',
+    'When you need a tool, emit exactly: <tool_call name="tool_name">{"arg":"value"}</tool_call>. You can **only** call these XML labeled tools that are listed below during the following conversation.',
+    'Available tools:',
+    toolHint
+  ].join('\n\n');
 }

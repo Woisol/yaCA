@@ -237,3 +237,34 @@ test('runAgentTurn persists assistant_text events that are not backed by sxml te
   assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant']);
   assert.equal(messages.at(-1)?.content, 'Stopped this turn because tool calls failed 2 times in a row.');
 });
+
+test('runAgentTurn passes abort signal to the agent stream', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-repl-'));
+  const store = new SessionStore({ homeDirectory: home, workspace: home });
+  const controller = new AbortController();
+  let streamSignal: AbortSignal | undefined;
+  const runtime = {
+    cwd: home,
+    state: { model: 'test-model' } as CliState,
+    store,
+    createAgent() {
+      return {
+        async *runStream(_messages: unknown, options?: { signal?: AbortSignal }) {
+          streamSignal = options?.signal;
+          yield { type: 'assistant_text' as const, text: 'hello' };
+        }
+      };
+    }
+  };
+
+  await runAgentTurn(
+    'hello',
+    runtime as never,
+    () => undefined,
+    () => undefined,
+    false,
+    { signal: controller.signal }
+  );
+
+  assert.equal(streamSignal, controller.signal);
+});
