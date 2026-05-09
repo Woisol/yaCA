@@ -32,7 +32,7 @@ export function Rewind({
   return (
     <Box flexDirection="column">
       {userMessages.length === 0 ? (
-        <Text color="grey">No user messages in the current conversation.</Text>
+        <Text color="gray">No user messages in the current conversation.</Text>
       ) : (
         userMessages.map(({ message, index }, listIndex) => (
           <Box key={index} backgroundColor={listIndex === selectedIndex ? 'yellowBright' : undefined} paddingX={1}>

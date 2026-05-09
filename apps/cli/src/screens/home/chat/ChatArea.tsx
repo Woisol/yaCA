@@ -21,7 +21,7 @@ export function ChatArea({ messages, hasSession }: { messages: ChatMessage[]; ha
         </Box>
       ) : messages.length === 0 ? (
         <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
-          <Text color="gray">No messages yet. Start the conversation by typing!</Text>
+            <Text color="gray">No messages yet. Start the conversation by typing!</Text>
         </Box>
       ) : (
         <Box flexDirection="column" marginBottom={1}>
@@ -75,7 +75,7 @@ function ToolMessage({ message }: { message: ChatMessage }) {
     <Box flexDirection="column" borderStyle="round" borderColor={color} paddingX={1}>
       <Box flexDirection="row">
         <Text color={color}>{status === 'error' ? '○' : '●'} </Text>
-        <Text color={"grey"}>{title}( {message.args && Object.entries(message.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')} )</Text>
+        <Text color={"gray"}>{title}( {message.args && Object.entries(message.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')} )</Text>
       </Box>
       {message.expanded && message.result ? <Text>{message.result}</Text> : null}
     </Box>

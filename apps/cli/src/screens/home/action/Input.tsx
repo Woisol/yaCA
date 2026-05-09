@@ -12,7 +12,7 @@ type InputProps = {
 export function Input({ input, focus = true, setInput, onSubmit }: InputProps) {
   const isEmpty = input.length === 0;
   return (
-    <Box borderColor={isEmpty ? 'grey' : 'white'} borderStyle="round" paddingX={1}>
+    <Box borderColor={isEmpty ? 'gray' : 'gray'} borderStyle="round" paddingX={1}>
       <Text color="cyan">yaca&gt; </Text>
       <TextInput
         focus={focus}

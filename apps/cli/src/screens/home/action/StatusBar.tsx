@@ -20,7 +20,7 @@ export function StatusBar({ busy, model, cwd }: StatusBarProps) {
       <Box>
         {busy ?
           <Text color="yellow">⚡ thinking...</Text> :
-          <Text color="grey">yaca v{YACA_VERSION}</Text>
+          <Text color="gray">yaca v{YACA_VERSION}</Text>
         }
       </Box>
     </Box>

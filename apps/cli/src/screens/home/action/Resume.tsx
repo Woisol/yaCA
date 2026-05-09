@@ -20,7 +20,7 @@ export function Resume({ sessions, onSessionSelect, onQuit }: { sessions: Sessio
   return (
     <Box flexDirection="column">
       {sessions.length === 0 ? (
-        <Text color="grey">No sessions found. Start a new one by sending a message.</Text>
+        <Text color="gray">No sessions found. Start a new one by sending a message.</Text>
       ) : (
         sessions.map((session, index) => (
           <Box key={session.id} backgroundColor={index === selectedIndex ? "cyanBright" : undefined} paddingX={1}>
