@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Box, render, Text, useApp } from 'ink';
+import { Box, render, Text, useApp, type RenderOptions } from 'ink';
 import { handleBuiltinCommand, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
 import type { AgentEvent } from '@yaca/types';
 import { preserveInputAfterCurrentKeypress } from '../input/preserve.js';
@@ -51,8 +51,12 @@ export type ReplRuntime = {
   createAgent(): AgentLoop;
 };
 
+export const replRenderOptions: RenderOptions = {
+  exitOnCtrlC: false
+};
+
 export function startInkRepl(runtime: ReplRuntime): void {
-  render(<YacaRepl runtime={runtime} />);
+  render(<YacaRepl runtime={runtime} />, replRenderOptions);
 }
 
 function YacaRepl({ runtime }: { runtime: ReplRuntime }) {

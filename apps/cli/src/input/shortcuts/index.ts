@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { KeyboardShortcut } from '../registry.js';
+import { DOUBLE_CLICK_INTERVAL } from '@yaca/agent-core/constants/time.js';
 
 type MessageKind = 'user' | 'assistant' | 'tool' | 'status' | 'error';
 
@@ -89,7 +90,7 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       match: (_input, key) => key.escape,
       run: (context) => {
         const currentTime = context.now();
-        if (currentTime - context.lastEscapeAt < 800) {
+        if (currentTime - context.lastEscapeAt < DOUBLE_CLICK_INTERVAL) {
           context.openRewind();
           context.setLastEscapeAt(0);
         } else {
@@ -113,7 +114,7 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       match: (input, key) => key.ctrl && input === 'c',
       run: (context) => {
         const currentTime = context.now();
-        if (currentTime - context.lastCtrlCAt < 800) {
+        if (currentTime - context.lastCtrlCAt < DOUBLE_CLICK_INTERVAL) {
           context.exit();
         } else {
           context.setLastCtrlCAt(currentTime);

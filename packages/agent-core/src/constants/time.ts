@@ -1,0 +1,1 @@
+export const DOUBLE_CLICK_INTERVAL = 800; // ms

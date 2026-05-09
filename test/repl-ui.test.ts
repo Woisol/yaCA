@@ -4,7 +4,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { SessionStore, type CliState } from '@yaca/agent-core';
-import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText } from '../apps/cli/src/screens/repl-ui.js';
+import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText, replRenderOptions } from '../apps/cli/src/screens/repl-ui.js';
 import { runAgentTurn } from '../apps/cli/src/api/repl-helpers.js';
 
 // 现在不再在消息数据中附带 id
@@ -14,6 +14,10 @@ import { runAgentTurn } from '../apps/cli/src/api/repl-helpers.js';
 
 //   assert.deepEqual(second.map((line) => line.id), [1, 2]);
 // });
+
+test('repl render options let Ctrl+C reach keyboard shortcuts', () => {
+  assert.equal(replRenderOptions.exitOnCtrlC, false);
+});
 
 test('renderSessionMessages converts resumed session history into chat lines', () => {
   const lines = renderSessionMessages([
