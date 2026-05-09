@@ -1,4 +1,4 @@
-import { YACA_HOME } from "@yaca/agent-core/constants/path.js"
+import { YACA_VERSION } from "@yaca/agent-core/constants/path.js"
 import { Box, Spacer, Text } from "ink"
 import { readFileSync } from "node:fs"
 
@@ -20,7 +20,7 @@ export function StatusBar({ busy, model, cwd }: StatusBarProps) {
       <Box>
         {busy ?
           <Text color="yellow">⚡ thinking...</Text> :
-          <Text color="grey">yaca v{JSON.parse(readFileSync(YACA_HOME + "/package.json", "utf-8")).version}</Text>
+          <Text color="grey">yaca v{YACA_VERSION}</Text>
         }
       </Box>
     </Box>
