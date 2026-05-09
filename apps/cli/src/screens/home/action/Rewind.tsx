@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from 'ink';
 import { useState } from 'react';
 import type { ChatMessage } from '../chat/ChatArea.js';
+import { reduceMessageFile } from '@yaca/cli/api/message-utils.js';
 
 export function Rewind({
   messages,
@@ -37,7 +38,7 @@ export function Rewind({
         userMessages.map(({ message, index }, listIndex) => (
           <Box key={index} backgroundColor={listIndex === selectedIndex ? 'yellowBright' : undefined} paddingX={1}>
             <Text color={listIndex === selectedIndex ? 'black' : undefined}>
-              {message.text ?? ''}
+              {reduceMessageFile(message.text ?? '')}
             </Text>
           </Box>
         ))

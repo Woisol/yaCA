@@ -20,12 +20,12 @@ export async function runAgentTurn(
   appendLine: (kind: string, text: string) => void,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
   showToolOutput: boolean,
-  options: { signal?: AbortSignal } = {}
+  options: { signal?: AbortSignal; userContent?: StoredChatMessage['content'] } = {}
 ): Promise<void> {
   if (!runtime.state.sessionId) {
     runtime.state.sessionId = (await runtime.store.createSession(text.slice(0, 80))).id;
   }
-  const content = await parseUserInput(text, runtime.cwd);
+  const content = options.userContent ?? await parseUserInput(text, runtime.cwd);
   await runtime.store.appendMessage(runtime.state.sessionId, { role: 'user', content });
   const assistantEvents: YacaSxmlEvent[] = [];
   const assistantTextEvents: string[] = [];

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Box, render, Text, useApp, type RenderOptions } from 'ink';
-import { handleBuiltinCommand, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
+import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
 import type { AgentEvent } from '@yaca/types';
 import { preserveInputAfterCurrentKeypress } from '../input/preserve.js';
 import { useKeyboardShortcuts } from '../input/registry.js';
@@ -27,6 +27,8 @@ import {
   runAgentTurn,
   isSessionSwitchCommand,
   chatMessagesToStored,
+  reduceMessageFile,
+  formatStoredMessageContent,
 } from '../api/index.js';
 
 // Re-export for test compatibility
@@ -147,18 +149,20 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   }
 
   async function submit(text: string): Promise<void> {
-    appendLine('user', text);
     setBusy(true);
     try {
       const trimmed = text.trim();
       if (trimmed.startsWith('/')) {
+        appendLine('user', reduceMessageFile(text));
         await handleSlashCommand(trimmed);
         return;
       }
+      const content = await parseUserInput(text, runtime.cwd);
+      appendLine('user', reduceMessageFile(formatStoredMessageContent(content)));
       const controller = new AbortController();
       activeTurnControllerRef.current = controller;
       try {
-        await runAgentTurn(text, runtime, appendLine, setMessages, showToolOutput, { signal: controller.signal });
+        await runAgentTurn(text, runtime, appendLine, setMessages, showToolOutput, { signal: controller.signal, userContent: content });
       } finally {
         if (activeTurnControllerRef.current === controller) {
           activeTurnControllerRef.current = null;

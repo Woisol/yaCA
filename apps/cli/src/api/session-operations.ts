@@ -1,6 +1,6 @@
 import type { ChatMessage as StoredChatMessage } from '@yaca/types';
 import type { ChatMessage } from './message-utils.js';
-import { formatStoredMessageContent, chatMessagesToStored } from './message-utils.js';
+import { formatStoredMessageContent, chatMessagesToStored, reduceMessageFileToPathMention } from './message-utils.js';
 import { appendAssistantEvent, appendChatLine } from './chat-operations.js';
 import { applyToolResult } from './chat-operations.js';
 import { parseStoredAgentEvent } from './agent-events.js';
@@ -45,7 +45,7 @@ export function applyRewindSelection(current: ChatMessage[], selectedIndex: numb
   const messages = current.slice(0, selectedIndex);
   return {
     messages,
-    input: selected.text ?? '',
+    input: reduceMessageFileToPathMention(selected.text ?? ''),
     storedMessages: chatMessagesToStored(messages)
   };
 }

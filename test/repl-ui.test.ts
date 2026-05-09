@@ -4,7 +4,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { SessionStore, type CliState } from '@yaca/agent-core';
-import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText, replRenderOptions } from '../apps/cli/src/screens/repl-ui.js';
+import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText, replRenderOptions, type ChatMessage } from '../apps/cli/src/screens/repl-ui.js';
 import { runAgentTurn } from '../apps/cli/src/api/repl-helpers.js';
 
 // 现在不再在消息数据中附带 id
@@ -188,6 +188,16 @@ test('applyRewindSelection trims to before selected user message and restores it
   });
 });
 
+test('applyRewindSelection restores reduced file markers as @path references', () => {
+  const current = [
+    { kind: 'user' as const, text: 'summarize [File:src/index.ts]' },
+    { kind: 'assistant' as const, text: 'answer' }
+  ];
+
+  const result = applyRewindSelection(current, 0);
+  assert.equal(result.input, 'summarize [File:src/index.ts]');
+});
+
 test('applyRewindSelection ignores non-user selected messages', () => {
   const current = [
     { kind: 'user' as const, text: 'first' },
@@ -267,4 +277,36 @@ test('runAgentTurn passes abort signal to the agent stream', async () => {
   );
 
   assert.equal(streamSignal, controller.signal);
+});
+
+test('runAgentTurn uses pre-parsed user content when provided', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-repl-'));
+  const filePath = path.join(home, 'notes.md');
+  await import('node:fs/promises').then(({ writeFile }) => writeFile(filePath, 'hello file', 'utf8'));
+  const store = new SessionStore({ homeDirectory: home, workspace: home });
+  const runtime = {
+    cwd: home,
+    state: { model: 'test-model' } as CliState,
+    store,
+    createAgent() {
+      return {
+        async *runStream() {
+          await import('node:fs/promises').then(({ rm }) => rm(filePath));
+          yield { type: 'assistant_text' as const, text: 'ok' };
+        }
+      };
+    }
+  };
+
+  await runAgentTurn(
+    'summarize @notes.md',
+    runtime as never,
+    () => undefined,
+    () => undefined,
+    false,
+    { userContent: [{ type: 'text', text: 'pre-parsed file content' }] }
+  );
+
+  const messages = await store.readMessages(runtime.state.sessionId!);
+    assert.deepEqual(messages[0]?.content, [{ type: 'text', text: 'pre-parsed file content' }]);
 });

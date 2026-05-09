@@ -1,3 +1,4 @@
+import { reduceMessageFile } from '@yaca/cli/api/message-utils.js';
 import { Box, Text, useStdout } from 'ink';
 
 export type ChatMessage = {
@@ -37,7 +38,7 @@ function MessageLine({ message }: { message: ChatMessage }) {
     case 'user':
       return (
         <Box borderStyle="round" borderColor="cyan" paddingX={1}>
-          <Text>{message.text}</Text>
+          <Text>{reduceMessageFile(message.text ?? '')}</Text>
         </Box>
       );
     case 'assistant':

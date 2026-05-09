@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { ChatMessage as StoredChatMessage, MessagePart } from '@yaca/types';
 
 export function formatStoredMessageContent(content: StoredChatMessage['content']): string {
@@ -69,6 +70,38 @@ export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage
     }
     return [];
   });
+}
+
+export function reduceMessageFile(rawMessage: string): string {
+  const filePattern = /\n\n\[File: (.+?)\]\n[\s\S]*?\[End of File\]\n\n/g;
+  return rawMessage.replace(filePattern, (_match, filePath: string) => {
+    const relativePath = path.relative(process.cwd(), filePath);
+    // 只有当文件在当前目录下层（不包含 ..）时才使用相对路径
+    if (!relativePath.startsWith('..')) {
+      return `[File:${relativePath}]`;
+    }
+    return `[File:${filePath}]`;
+  });
+}
+
+export function reduceMessageFileToPathMention(rawMessage: string): string {
+  const withoutFileContent = rawMessage.replace(/\n\n\[File: (.+?)\]\n[\s\S]*?\[End of File\]\n\n/g, (_match, filePath: string) => {
+    const fp = filePath.trim();
+    const relativePath = path.relative(process.cwd(), fp);
+    const chosen = !relativePath.startsWith('..') ? relativePath : fp;
+    return `@${formatPathMention(chosen)}`;
+  });
+  return withoutFileContent.replace(/\n\n\[File:([^\]]+)\]\n\n/g, (_match, filePath: string) => {
+    const fp = filePath.trim();
+    const relativePath = path.relative(process.cwd(), fp);
+    const chosen = !relativePath.startsWith('..') ? relativePath : fp;
+    return `@${formatPathMention(chosen)}`;
+  });
+}
+
+// 即有空格就加引号并转义
+function formatPathMention(filePath: string): string {
+  return /\s/.test(filePath) ? `"${filePath.replaceAll('"', '\\"')}"` : filePath;
 }
 
 export type ChatMessage = {
