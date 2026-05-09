@@ -8,6 +8,10 @@ import type { AssistantEvent, ToolCall } from '@yaca/types/index.js';
 const { SxmlParser } = sxml as unknown as { SxmlParser: new (config: ConstructorParameters<typeof import('@woisol-g/sxml.js').SxmlParser>[0]) => import('@woisol-g/sxml.js').SxmlParser };
 // type YacaSxmlParser = import('@woisol-g/sxml.js').SxmlParser;
 
+export type YacaSxmlParserOptions = {
+  tryFallback?: boolean;
+};
+
 export type YacaSxmlEvent = AssistantEvent;
 
 export type YacaSxmlPatch = {
@@ -39,7 +43,7 @@ const toolCallHandler: TagHandler = {
   }
 };
 
-export function createYacaSxmlParser(): YacaSxmlParser {
+export function createYacaSxmlParser(options: YacaSxmlParserOptions = {}): YacaSxmlParser {
   return new SxmlParser({
     legalTags: [
       { name: 'think', confirmAt: 'open' },
@@ -49,7 +53,8 @@ export function createYacaSxmlParser(): YacaSxmlParser {
       tool_call: toolCallHandler
     },
     maxNestingDepth: 1,
-    errorStrategy: 'lenient' as ErrorStrategy
+    errorStrategy: 'lenient' as ErrorStrategy,
+    tryFallback: options.tryFallback ?? true
   });
 }
 

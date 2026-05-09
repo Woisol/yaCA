@@ -1,3 +1,5 @@
 我们现在来重构一下工具调用，我希望除了使用 sxml.js 解析的 <tool_call> 标签外，也支持标准的 OpenAI 兼容的工具调用方式。你在设置中加一个 tool_call_compatible 配置项，默认不不开启为 false，此时使用标准的 OpenAI 工具调用格式，设为 true 才使用现在的 sxml.js 解析。你把 agent-toop.ts 中的 *streamAssistantTurn 整个抽象出去到 agent-core/llm 下，写一个 openai-compatible 的版本，再运行时动态根据 config 选择调用。
 
+好，最后一个小点：我注意到在使用 sxml.js 解析时，模型调用有概率返回不完整的 XML tag，例如 `<tool_call>...</tool_call` 或者 `<tool_call>...</`。我们再添加一个 .tool_call.try_fallback 配置项，默认值为 false，开启后尽可能尝试解析不完整的 XML tag。我们先来讨论一下 fallback 边界
+
 我们接下来实现工具调用权限。首先添加设置项 .tool_call.allow，初始值为 ["read_file", "list_directory", "stat_path", "cwd", "get_tool_hint"]。每次工具调用前都检查是否在 allow 中，如果不在则在 append 了 tool_call 事件后，参考 Resume，在输入框后面显示选择框 Yes/No 询问用户是否允许执行。另外，在主界面添加快捷键 Shift + Tab，可以在 untrust 和 trust 模式之间切换，trust 模式下在 StatusBar（已经写好）中显示状态文本，并允许所有工具调用。untrust 模式则为之前的默认行为。再最后加一个 /tool 命令，输入后打开 ToolSelect 组件允许用户更新 allow 列表

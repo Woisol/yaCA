@@ -35,7 +35,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     maxToolRetry: config.max_tool_retry,
     tools,
     postponeToolCalls: config.tool_call.postpone_tool_calls,
-    toolCallCompatible: config.tool_call.tool_call_compatible
+    toolCallCompatible: config.tool_call.tool_call_compatible,
+    toolCallTryFallback: config.tool_call.try_fallback
   });
 
   if (args.serve !== undefined) {

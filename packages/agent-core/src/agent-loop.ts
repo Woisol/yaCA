@@ -22,7 +22,7 @@ export class AgentLoop {
   private readonly streamAssistantTurn: AssistantTurnStrategy;
   private readonly toolCallCompatible: boolean;
 
-  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean }) {
+  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean; toolCallTryFallback?: boolean }) {
     this.model = options.model;
     this.tools = options.tools;
     this.postponeToolCalls = options.postponeToolCalls;
@@ -30,7 +30,7 @@ export class AgentLoop {
     this.maxToolRetry = options.maxToolRetry ?? 5;
     this.toolCallCompatible = options.toolCallCompatible ?? false;
     this.streamAssistantTurn = options.toolCallCompatible
-      ? createSxmlAssistantTurn(this.model)
+      ? createSxmlAssistantTurn(this.model, { tryFallback: options.toolCallTryFallback })
       : createOpenAICompatibleAssistantTurn(this.model);
   }
 

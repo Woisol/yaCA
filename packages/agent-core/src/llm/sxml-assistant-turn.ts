@@ -1,13 +1,13 @@
 import type { AgentEvent, AssistantEvent, ChatMessage, ModelClient } from '@yaca/types';
-import { applySxmlPatch, createYacaSxmlParser, endAndDrain, writeAndDrain, type YacaSxmlEvent, type YacaSxmlPatch } from '../parser/sxml-adapter.js';
+import { applySxmlPatch, createYacaSxmlParser, endAndDrain, writeAndDrain, YacaSxmlParserOptions, type YacaSxmlEvent, type YacaSxmlPatch } from '../parser/sxml-adapter.js';
 import { Logger } from '@yaca/utils/logger.js';
 import type { AgentRunOptions, AssistantTurnContext, PendingToolCall, StreamTurnResult, ToolFailureCall } from './assistant-turn.js';
 import { formatError, isAbortError } from './assistant-turn.js';
 
-export function createSxmlAssistantTurn(model: ModelClient): (messages: ChatMessage[], options: AgentRunOptions, context: AssistantTurnContext) => AsyncGenerator<AgentEvent, StreamTurnResult> {
+export function createSxmlAssistantTurn(model: ModelClient, parserOptions: YacaSxmlParserOptions = {}): (messages: ChatMessage[], options: AgentRunOptions, context: AssistantTurnContext) => AsyncGenerator<AgentEvent, StreamTurnResult> {
   const logger = new Logger('SxmlAssistantTurn');
   return async function* streamSxmlAssistantTurn(messages, options, context) {
-    const parser = createYacaSxmlParser();
+    const parser = createYacaSxmlParser({ tryFallback: parserOptions.tryFallback });
     const parsedEvents: YacaSxmlEvent[] = [];
     const calls: PendingToolCall[] = [];
     const parseFailures: ToolFailureCall[] = [];

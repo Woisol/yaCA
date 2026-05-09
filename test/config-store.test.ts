@@ -18,7 +18,8 @@ test('ConfigStore defaults tool_call options', async () => {
 
   assert.deepEqual(config.tool_call, {
     tool_call_compatible: false,
-    postpone_tool_calls: 2
+    postpone_tool_calls: 2,
+    try_fallback: false
   });
 });
 
@@ -48,4 +49,18 @@ test('ConfigStore normalizes legacy top-level postpone_tool_calls to tool_call.p
 
   assert.equal(config.tool_call.postpone_tool_calls, 7);
   assert.equal('postpone_tool_calls' in config, false);
+});
+
+test('ConfigStore normalizes legacy top-level try_fallback to tool_call.try_fallback', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-config-'));
+  await writeFile(path.join(home, 'config.json'), JSON.stringify({
+    model: 'test-model',
+    base_url: 'http://127.0.0.1:1/v1',
+    try_fallback: false
+  }), 'utf8');
+
+  const config = await new ConfigStore(home).load();
+
+  assert.equal(config.tool_call.try_fallback, false);
+  assert.equal('try_fallback' in config, false);
 });

@@ -12,15 +12,19 @@ export type YacaConfig = {
   tool_call: {
     tool_call_compatible: boolean;
     postpone_tool_calls: number;
+    try_fallback: boolean;
   };
 };
 
-type LegacyYacaConfig = Partial<YacaConfig> & {
+// 好个 legacy
+type LegacyYacaConfig = Partial<Omit<YacaConfig, 'tool_call'>> & {
   default_model?: string;
   models?: Array<{ name: string; base_url: string }>;
   maxToolRetry?: number;
   postpone_tool_calls?: number;
   tool_call_compatible?: boolean;
+  try_fallback?: boolean;
+  tool_call?: Partial<YacaConfig['tool_call']>;
 };
 
 const defaultModel = 'qwen2.5-vl-7b';
@@ -35,7 +39,8 @@ const defaultConfig: YacaConfig = {
   max_tool_retry: defaultMaxToolRetry,
   tool_call: {
     tool_call_compatible: false,
-    postpone_tool_calls: defaultPostponeToolCallsSeconds
+    postpone_tool_calls: defaultPostponeToolCallsSeconds,
+    try_fallback: false
   }
 };
 
@@ -76,7 +81,8 @@ function normalizeConfig(config: LegacyYacaConfig): YacaConfig {
     max_tool_retry: config.max_tool_retry ?? config.maxToolRetry ?? defaultMaxToolRetry,
     tool_call: {
       tool_call_compatible: config.tool_call?.tool_call_compatible ?? config.tool_call_compatible ?? false,
-      postpone_tool_calls: config.tool_call?.postpone_tool_calls ?? config.postpone_tool_calls ?? defaultPostponeToolCallsSeconds
+      postpone_tool_calls: config.tool_call?.postpone_tool_calls ?? config.postpone_tool_calls ?? defaultPostponeToolCallsSeconds,
+      try_fallback: config.tool_call?.try_fallback ?? config.try_fallback ?? true
     }
   };
 }

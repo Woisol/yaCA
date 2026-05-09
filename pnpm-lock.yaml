@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@woisol-g/sxml.js':
-        specifier: ^0.2.1
-        version: 0.2.1
       commander:
         specifier: ^14.0.3
         version: 14.0.3
@@ -53,8 +50,8 @@ importers:
   packages/agent-core:
     dependencies:
       '@woisol-g/sxml.js':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.3.0
+        version: 0.3.0
 
   packages/agent-tools: {}
 
@@ -382,8 +379,8 @@ packages:
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
-  '@woisol-g/sxml.js@0.2.1':
-    resolution: {integrity: sha512-nXcsNHJOhQzpI4Y6KQS+Nn+SiLU2jaDPJlvMLpNcFyGjtilVXV/qdkKQyhotdC6ZNrPoHfcKw8/AvZuu+G0HQw==}
+  '@woisol-g/sxml.js@0.3.0':
+    resolution: {integrity: sha512-9IXVGn+3nku3Ol8D2G42L005zs1pasf8r7HK0igXG4Bp6UZMitcxttTVBwVZn7TVB1z0aZHkcMNvy96gej6ZCw==}
 
   acorn@8.16.0:
     resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
@@ -982,7 +979,7 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@woisol-g/sxml.js@0.2.1': {}
+  '@woisol-g/sxml.js@0.3.0': {}
 
   acorn@8.16.0: {}
 
