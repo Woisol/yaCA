@@ -71,11 +71,13 @@ function ToolMessage({ message }: { message: ChatMessage }) {
     ? `${message.toolName} ${status === 'running' ? 'executing...' : status}`
     : message.text ?? '';
 
+  const toolArgs = message.args ? Object.entries(message.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ') : '';
+
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={color} paddingX={1}>
       <Box flexDirection="row">
         <Text color={color}>{status === 'error' ? '○' : '●'} </Text>
-        <Text color={"gray"}>{title}( {message.args && Object.entries(message.args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')} )</Text>
+        <Text color={"gray"}>{title}({toolArgs ? ` ${toolArgs} ` : ''})</Text>
       </Box>
       {message.expanded && message.result ? <Text>{message.result}</Text> : null}
     </Box>
