@@ -34,7 +34,7 @@ test('parseUserInput reads local text file @path references as text parts', asyn
 
   const parts = await parseUserInput('summarize @notes.md please', directory);
 
-  assert.deepEqual(parts, [{ type: 'text', text: 'summarize # Notes\n\nRead this. please' }]);
+  assert.deepEqual(parts, [{ type: 'text', text: `summarize \n\n[File: ${filePath}]\n# Notes\n\nRead this.\n[End of File]\n\n please` }]);
 });
 
 test('parseUserInput keeps directory @path references as text', async () => {

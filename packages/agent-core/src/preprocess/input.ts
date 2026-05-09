@@ -16,6 +16,9 @@ export type ParseUserInputOptions = {
   yacaHome?: string;
 };
 
+/**
+ * 用户输入预处理入口
+ */
 export async function parseUserInput(input: string, cwd = process.cwd(), options: ParseUserInputOptions = {}): Promise<MessagePart[]> {
   const parts: MessagePart[] = [];
   const matcher = /@(?:("[^"]+")|([^\s]+))/g;
@@ -27,6 +30,8 @@ export async function parseUserInput(input: string, cwd = process.cwd(), options
     const reference = rawReference.startsWith('"') && rawReference.endsWith('"')
       ? rawReference.slice(1, -1)
       : rawReference;
+    // path.resolve 处理绝对/相对路径✅
+    // If {to} isn't already absolute, {from} arguments are prepended in right to left order, until an absolute path is found.
     const resolved = path.resolve(cwd, reference);
     const filePart = await tryCreateFilePart(resolved, options.yacaHome ?? YACA_HOME);
 
@@ -34,16 +39,27 @@ export async function parseUserInput(input: string, cwd = process.cwd(), options
       continue;
     }
 
-    appendText(parts, input.slice(cursor, match.index));
+
+    // 拆分文本和文件引用放回 parts
+    const text = input.slice(cursor, match.index);
+    if (text.length > 0) {
+      parts.push({ type: 'text', text });
+    }
+
     parts.push(filePart);
     cursor = match.index + match[0].length;
   }
 
-  appendText(parts, input.slice(cursor));
+  const text = input.slice(cursor);
+  if (text.length > 0) {
+    parts.push({ type: 'text', text });
+  }
+
   return parts.length === 0 ? [{ type: 'text', text: input }] : mergeTextParts(parts);
 }
 
 async function tryCreateFilePart(filePath: string, yacaHome: string): Promise<MessagePart | undefined> {
+  // 不是文件直接返回 undefined
   try {
     const info = await stat(filePath);
     if (!info.isFile()) return undefined;
@@ -52,7 +68,7 @@ async function tryCreateFilePart(filePath: string, yacaHome: string): Promise<Me
   }
 
   return await tryCreateImagePart(filePath, yacaHome)
-    ?? { type: 'text', text: await readFile(filePath, 'utf8') };
+    ?? { type: 'text', text: await readFileWithMeta(filePath, 'utf8') };
 }
 
 async function tryCreateImagePart(filePath: string, yacaHome: string): Promise<MessagePart | undefined> {
@@ -63,6 +79,7 @@ async function tryCreateImagePart(filePath: string, yacaHome: string): Promise<M
 
   try {
     const data = await readFile(filePath);
+    // 直接 toString("base64") 转✅
     await cacheBase64Image(yacaHome, filePath, data.toString('base64'));
     return {
       type: 'image_url',
@@ -80,12 +97,6 @@ async function cacheBase64Image(yacaHome: string, filePath: string, base64: stri
   await writeFile(path.join(cacheDirectory, `${path.basename(filePath)}.base64`), base64, 'utf8');
 }
 
-function appendText(parts: MessagePart[], text: string): void {
-  if (text.length > 0) {
-    parts.push({ type: 'text', text });
-  }
-}
-
 function mergeTextParts(parts: MessagePart[]): MessagePart[] {
   const merged: MessagePart[] = [];
   for (const part of parts) {
@@ -97,4 +108,14 @@ function mergeTextParts(parts: MessagePart[]): MessagePart[] {
     }
   }
   return merged;
+}
+
+async function readFileWithMeta(filePath: string, encoding?: BufferEncoding): Promise<string> {
+  return `
+
+[File: ${filePath}]
+${await readFile(filePath, encoding)}
+[End of File]
+
+`;
 }
