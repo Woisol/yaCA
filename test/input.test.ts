@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -25,6 +25,25 @@ test('parseUserInput keeps unresolved @path references as text', async () => {
   const parts = await parseUserInput('open @missing.png now', directory);
 
   assert.deepEqual(parts, [{ type: 'text', text: 'open @missing.png now' }]);
+});
+
+test('parseUserInput reads local text file @path references as text parts', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
+  const filePath = path.join(directory, 'notes.md');
+  await writeFile(filePath, '# Notes\n\nRead this.', 'utf8');
+
+  const parts = await parseUserInput('summarize @notes.md please', directory);
+
+  assert.deepEqual(parts, [{ type: 'text', text: 'summarize # Notes\n\nRead this. please' }]);
+});
+
+test('parseUserInput keeps directory @path references as text', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
+  await mkdir(path.join(directory, 'src'));
+
+  const parts = await parseUserInput('inspect @src now', directory);
+
+  assert.deepEqual(parts, [{ type: 'text', text: 'inspect @src now' }]);
 });
 
 test('parseUserInput caches image base64 payloads', async () => {

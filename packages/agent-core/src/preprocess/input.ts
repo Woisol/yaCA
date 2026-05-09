@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -28,19 +28,31 @@ export async function parseUserInput(input: string, cwd = process.cwd(), options
       ? rawReference.slice(1, -1)
       : rawReference;
     const resolved = path.resolve(cwd, reference);
-    const imagePart = await tryCreateImagePart(resolved, options.yacaHome ?? YACA_HOME);
+    const filePart = await tryCreateFilePart(resolved, options.yacaHome ?? YACA_HOME);
 
-    if (!imagePart) {
+    if (!filePart) {
       continue;
     }
 
     appendText(parts, input.slice(cursor, match.index));
-    parts.push(imagePart);
+    parts.push(filePart);
     cursor = match.index + match[0].length;
   }
 
   appendText(parts, input.slice(cursor));
   return parts.length === 0 ? [{ type: 'text', text: input }] : mergeTextParts(parts);
+}
+
+async function tryCreateFilePart(filePath: string, yacaHome: string): Promise<MessagePart | undefined> {
+  try {
+    const info = await stat(filePath);
+    if (!info.isFile()) return undefined;
+  } catch {
+    return undefined;
+  }
+
+  return await tryCreateImagePart(filePath, yacaHome)
+    ?? { type: 'text', text: await readFile(filePath, 'utf8') };
 }
 
 async function tryCreateImagePart(filePath: string, yacaHome: string): Promise<MessagePart | undefined> {
@@ -50,7 +62,6 @@ async function tryCreateImagePart(filePath: string, yacaHome: string): Promise<M
   }
 
   try {
-    await access(filePath);
     const data = await readFile(filePath);
     await cacheBase64Image(yacaHome, filePath, data.toString('base64'));
     return {

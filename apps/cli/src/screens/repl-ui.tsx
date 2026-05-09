@@ -70,6 +70,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [userMessageDraft, setUserMessageDraft] = useState('');
   const [showRewind, setShowRewind] = useState(false);
   const [showResume, setShowResume] = useState(false);
+  const [showPathCompletion, setShowPathCompletion] = useState(false);
   const [resumeSessions, setResumeSessions] = useState<SessionMeta[]>([]);
   const activeTurnControllerRef = useRef<AbortController | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -95,7 +96,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     userMessageDraft,
     lastCtrlCAt,
     lastEscapeAt,
-    shortcutsEnabled: !(showRewind || showResume),
+    shortcutsEnabled: !(showRewind || showResume || showPathCompletion),
     now: Date.now,
     setInput,
     setBusy,
@@ -235,9 +236,11 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
         <>
             <ChatArea messages={messages} hasSession={!!runtime.state.sessionId} />
             <Input
+              cwd={runtime.cwd}
               focus={!busy && !(showRewind || showResume)}
               input={input}
               setInput={updateInput}
+              onCompletionOpenChange={setShowPathCompletion}
               onSubmit={submitInput}
             />
             <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} />
