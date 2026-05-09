@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import TextInput from 'ink-text-input';
+import { EnhancedTextInput } from './enhanced-text-input.js';
 import { applyPathCompletion, getPathCompletionState, type PathCompletionState } from './path-completions.js';
 
 type InputProps = {
@@ -17,6 +17,7 @@ export function Input({ input, cwd, focus = true, setInput, onCompletionOpenChan
   const isEmpty = input.length === 0;
   const [completion, setCompletion] = useState<PathCompletionState | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [cursorOffset, setCursorOffset] = useState(input.length);
   const completionOpen = focus && completion !== null && completion.items.length > 0;
 
   useEffect(() => {
@@ -48,7 +49,9 @@ export function Input({ input, cwd, focus = true, setInput, onCompletionOpenChan
     } else if (key.downArrow) {
       setSelectedIndex((current) => Math.min(completion.items.length - 1, current + 1));
     } else if (key.tab) {
-      setInput(applyPathCompletion(input, completion, selectedIndex));
+      const nextInput = applyPathCompletion(input, completion, selectedIndex);
+      setInput(nextInput);
+      setCursorOffset(nextInput.length);
       setCompletion(null);
     }
   }, { isActive: focus });
@@ -57,13 +60,17 @@ export function Input({ input, cwd, focus = true, setInput, onCompletionOpenChan
     <Box flexDirection="column">
       <Box borderColor={isEmpty ? 'gray' : 'gray'} borderStyle="round" paddingX={1}>
         <Text color="cyan">yaca&gt; </Text>
-        <TextInput
+        <EnhancedTextInput
           focus={focus}
           highlightPastedText
           placeholder="Enter something creative..."
           showCursor
           value={input}
-          onChange={setInput}
+          cursorOffset={cursorOffset}
+          onChange={(value, nextCursorOffset) => {
+            setInput(value);
+            setCursorOffset(nextCursorOffset);
+          }}
           onSubmit={onSubmit}
         />
       </Box>

@@ -59,6 +59,7 @@ function findActivePathToken(input: string): ActivePathToken | null {
   if (!match) return null;
   const rawText = match[1] ?? '';
   const tokenStart = match.index + match[0].lastIndexOf('@') + 1;
+  // 甚至 quoted 都考虑好了😢
   const quoted = rawText.startsWith('"');
   const text = quoted ? rawText.slice(1, rawText.endsWith('"') ? -1 : undefined) : rawText;
   return { text, start: tokenStart + (quoted ? 1 : 0), end: input.length - (quoted && rawText.endsWith('"') ? 1 : 0) };
