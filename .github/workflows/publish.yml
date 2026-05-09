@@ -48,7 +48,7 @@ jobs:
           # write auth token for pnpm/npm
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
           # publish all packages in the workspace (requires packages to be versioned)
-          pnpm -w publish --access public --no-git-checks
+          pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

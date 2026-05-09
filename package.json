@@ -6,6 +6,10 @@
   "bin": {
     "yaca": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json --noEmit",
