@@ -6,6 +6,7 @@ import { exists, listEntries, searchFiles } from '../utils/files.js';
 import { formatToolPath, resolveToolPath } from '../utils/paths.js';
 import { readOptionalBoolean, readOptionalEncoding, readOptionalString, readRequiredString } from '../utils/args.js';
 import { readRange, replaceTextRange, sliceTextRange } from '../utils/text-range.js';
+import { readFileSync } from 'node:fs';
 
 export const filesystemTools: ToolFactory = ({ cwd }) => {
   const tools: ToolDefinition[] = [{
@@ -38,7 +39,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
       const content = readRequiredString(args.content, 'content');
       const append = readOptionalBoolean(args.append) === true;
       const overwrite = readOptionalBoolean(args.dangerouslyOverride) === true || append;
-      if (!overwrite && await exists(filePath)) {
+      if (!overwrite && await exists(filePath) && !!readFileSync(filePath).toString()) {
         return { ok: false, content: `Refusing to overwrite existing file: ${formatToolPath(cwd, filePath)}` };
       }
       await mkdir(path.dirname(filePath), { recursive: true });
