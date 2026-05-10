@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { storedChatMessageToModelMessage, storedChatMessagesToModelMessages, reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
+import { storedChatMessageToModelMessage, storedChatMessagesToModelMessages } from '@yaca/agent-core';
+import { reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
 
 test('stored tool parse error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'parse_tool_call', args: { content: '{}' } }, _rawResponse: '<tool_call name="parse_tool_call">{"content":"{}"}</tool_call>' } };

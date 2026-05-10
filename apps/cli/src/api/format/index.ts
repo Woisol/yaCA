@@ -4,6 +4,4 @@ export {
   formatStoredMessageContent,
   reduceMessageFile,
   reduceMessageFileToPathMention
-} from './format/message-format.js';
-
-export type { ChatMessage } from './chat/types.js';
+} from '../message-utils.js';

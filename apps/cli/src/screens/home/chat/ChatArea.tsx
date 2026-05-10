@@ -1,4 +1,4 @@
-import { reduceMessageFile } from '@yaca/cli/api/message-utils.js';
+import { reduceMessageFile } from '../../../api/format/index.js';
 import { Box, Text, useStdout } from 'ink';
 
 export type ChatMessage = {

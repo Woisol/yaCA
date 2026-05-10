@@ -2,4 +2,4 @@ export {
   appendStoredToolMessage,
   applyRewindSelection,
   renderSessionMessages
-} from './session/messages.js';
+} from '../session-operations.js';

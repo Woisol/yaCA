@@ -1,5 +1,5 @@
-import type { SessionStore } from '@yaca/agent-core';
-import type { ConfigStore, YacaConfig } from '@yaca/agent-core/storage/config-store.js';
+import type { SessionStore } from '../storage/session-store.js';
+import type { ConfigStore, YacaConfig } from '../storage/config-store.js';
 
 export type CliState = {
   model: string;

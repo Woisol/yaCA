@@ -7,4 +7,6 @@ export {
   applyToolResult,
   replaceAssistantText,
   setToolOutputExpanded
-} from './chat/messages.js';
+} from '../chat-operations.js';
+
+export type { ChatMessage } from './types.js';

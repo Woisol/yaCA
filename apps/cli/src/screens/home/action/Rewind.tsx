@@ -1,7 +1,7 @@
 import { Box, Text, useInput } from 'ink';
 import { useState } from 'react';
 import type { ChatMessage } from '../chat/ChatArea.js';
-import { reduceMessageFile } from '@yaca/cli/api/message-utils.js';
+import { reduceMessageFile } from '../../../api/format/index.js';
 
 export function Rewind({
   messages,

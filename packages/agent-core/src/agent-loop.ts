@@ -133,7 +133,6 @@ function createAssistantHistoryMessage(response: string, calls: PendingToolCall[
   };
 }
 
-// 在这里又有一个工具信息格式化，~ apps\cli\src\api\message-utils.ts:63 storedChatMessageToSxmlModelMessage
 function createToolHistoryMessage(call: ToolCall, result: ToolResult, toolCallCompatible: boolean): ChatMessage {
   if (toolCallCompatible) {
     return { role: 'user', content: result.content };
