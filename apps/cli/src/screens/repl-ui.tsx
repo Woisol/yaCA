@@ -92,6 +92,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { kind: 'status', text: 'YACA CLI ready. Send a message to create a session, or type /resume to browse history.' }
   ]);
+
   const userMessages = useMemo(() => {
     return messages
       .filter((msg) => msg.kind === 'user')
@@ -99,6 +100,14 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
       .filter((text): text is string => typeof text === 'string' && text.length > 0);
   }, [messages]);
 
+  // -c load messages first
+  useEffect(() => {
+    if (runtime.state.sessionId) {
+      runtime.store.readMessages(runtime.state.sessionId).then((history) => {
+        setMessages(renderSessionMessages(history));
+      });
+    }
+  }, [])
   useEffect(() => {
     setAllowedTools(runtime.state.config.tool_call.allow.tools);
   }, [runtime.state.config]);

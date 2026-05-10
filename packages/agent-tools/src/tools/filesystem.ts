@@ -4,7 +4,7 @@ import type { ToolDefinition } from '@yaca/types';
 import type { ToolFactory } from './context.js';
 import { exists, listEntries, searchFiles } from '../utils/files.js';
 import { formatToolPath, resolveToolPath } from '../utils/paths.js';
-import { readOptionalEncoding, readOptionalString, readRequiredString } from '../utils/args.js';
+import { readOptionalBoolean, readOptionalEncoding, readOptionalString, readRequiredString } from '../utils/args.js';
 import { readRange, replaceTextRange, sliceTextRange } from '../utils/text-range.js';
 
 export const filesystemTools: ToolFactory = ({ cwd }) => {
@@ -36,8 +36,8 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
     async execute(args) {
       const filePath = resolveToolPath(cwd, readRequiredString(args.path, 'path'));
       const content = readRequiredString(args.content, 'content');
-      const append = args.append === true;
-      const overwrite = args.dangerouslyOverride === true || append;
+      const append = readOptionalBoolean(args.append) === true;
+      const overwrite = readOptionalBoolean(args.dangerouslyOverride) === true || append;
       if (!overwrite && await exists(filePath)) {
         return { ok: false, content: `Refusing to overwrite existing file: ${formatToolPath(cwd, filePath)}` };
       }
@@ -82,7 +82,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
     parameters: { path: 'relative or absolute directory path', recursive: 'true for recursive listing' },
     async execute(args) {
       const directory = resolveToolPath(cwd, readOptionalString(args.path) ?? '.');
-      const entries = await listEntries(cwd, directory, args.recursive === true);
+      const entries = await listEntries(cwd, directory, readOptionalBoolean(args.recursive) === true);
       return { ok: true, content: entries.join('\n') };
     }
   }, {
@@ -132,7 +132,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
     async execute(args) {
       const source = resolveToolPath(cwd, readRequiredString(args.source, 'source'));
       const destination = resolveToolPath(cwd, readRequiredString(args.destination, 'destination'));
-      const override = args.dangerouslyOverride === true;
+      const override = readOptionalBoolean(args.dangerouslyOverride) === true;
 
       if (!await exists(source)) {
         return { ok: false, content: `Source not found: ${formatToolPath(cwd, source)}` };
@@ -156,7 +156,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
     async execute(args) {
       const rawPath = readRequiredString(args.path, 'path');
       const targetPath = resolveToolPath(cwd, rawPath);
-      const allowOutside = args.dangerouslyRemoveOutsideOfWorkspace === true;
+      const allowOutside = readOptionalBoolean(args.dangerouslyRemoveOutsideOfWorkspace) === true;
 
       const relativeToCwd = path.relative(cwd, targetPath);
       const isOutside = relativeToCwd.startsWith('..') || path.isAbsolute(relativeToCwd);
@@ -169,7 +169,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
         return { ok: false, content: `Path not found: ${formatToolPath(cwd, targetPath)}` };
       }
 
-      await rm(targetPath, { recursive: args.recursive === true, force: true });
+      await rm(targetPath, { recursive: readOptionalBoolean(args.recursive) === true, force: true });
       return { ok: true, content: `Removed ${formatToolPath(cwd, targetPath)}` };
     }
   }];

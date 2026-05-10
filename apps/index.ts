@@ -12,6 +12,7 @@ type CliArgs = {
   model?: string;
   baseUrl?: string;
   once?: string;
+  continue?: boolean;
 };
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
@@ -54,6 +55,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       onBeforeToolCall: toolPermissions.confirm
     });
   };
+
+  if (args.continue) {
+    const sessionsId = await (await store.listSessions()).at(0)?.id;
+    if (sessionsId) {
+      state.sessionId = sessionsId;
+    }
+  }
 
   if (args.serve !== undefined) {
     startServer({ port: args.serve, agent: createAgent(), cwd });
@@ -123,6 +131,8 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (value === '--help' || value === '-h') {
       output.write('Usage: yaca [--serve 3000] [--model name] [--baseurl url] [--once prompt]\n');
       process.exit(0);
+    } else if (value === '--continue' || value === '-c') {
+      args.continue = true;
     }
   }
   return args;
