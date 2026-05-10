@@ -55,16 +55,15 @@ export function applyAssistantEventPatch(current: ChatMessage[], patch: Assistan
 }
 
 export function applyToolCall(current: ChatMessage[], event: Extract<AgentEvent, { type: 'tool_call' }>): ChatMessage[] {
-  if (current.some((message) => message.kind === 'tool' && message.callId === event.call.call_id)) {
+  if (current.some((message) => message.kind === 'tool' && matchesToolEvent(message, event.call.call_id, event.rawResponse))) {
     return current;
   }
-  return appendToolCall(current, event.call);
+  return appendToolCall(current, event.call, event.rawResponse);
 }
 
 export function applyToolResult(current: ChatMessage[], event: Extract<AgentEvent, { type: 'tool_result' }>, expanded: boolean): ChatMessage[] {
-  const callId = event.call_id ?? '';
   return current.map((message) => {
-    if (message.kind !== 'tool' || message.callId !== callId) {
+    if (message.kind !== 'tool' || !matchesToolEvent(message, event.call_id, event.rawResponse)) {
       return message;
     }
     return {
@@ -87,13 +86,21 @@ function replaceLastAssistantEvent(current: ChatMessage[], event: AssistantEvent
   return [...current.slice(0, -1), ...appendAssistantEvent([], event)];
 }
 
-function appendToolCall(current: ChatMessage[], call: ToolCall): ChatMessage[] {
+function appendToolCall(current: ChatMessage[], call: ToolCall, rawResponse?: string): ChatMessage[] {
   return [...current, {
     kind: 'tool' as const,
     callId: call.call_id ?? '',
+    rawResponse,
     toolName: call.name,
     args: call.args,
     status: 'running' as const,
     expanded: false
   }];
+}
+
+function matchesToolEvent(message: ChatMessage, callId: string | undefined, rawResponse: string | undefined): boolean {
+  if (callId) {
+    return message.callId === callId;
+  }
+  return !!rawResponse && message.rawResponse === rawResponse;
 }

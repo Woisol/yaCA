@@ -157,4 +157,5 @@ export type ChatMessage = {
   status?: 'running' | 'success' | 'error';
   result?: string;
   expanded?: boolean;
+  rawResponse?: string;
 };

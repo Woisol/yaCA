@@ -4,7 +4,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { SessionStore, type CliState } from '@yaca/agent-core';
-import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText, replRenderOptions, type ChatMessage } from '../apps/cli/src/screens/repl-ui.js';
+import { appendAssistantEvent, appendAssistantDelta, appendChatLine, applyRewindSelection, applyToolCall, applyToolResult, createStoredAgentEventMessage, renderSessionMessages, replaceAssistantText, replRenderOptions, type ChatMessage } from '../apps/cli/src/screens/repl-ui.js';
 import { runAgentTurn } from '../apps/cli/src/api/repl-helpers.js';
 
 // 现在不再在消息数据中附带 id
@@ -119,6 +119,112 @@ test('applyToolResult expands matching tool result when tool output is enabled',
   assert.equal(updated[0]?.kind, 'tool');
   assert.equal(updated[0]?.expanded, true);
   assert.equal(updated[0]?.status, 'error');
+});
+
+test('applyToolCall keeps multiple tool calls without provider call ids', () => {
+  const first = applyToolCall([], {
+    type: 'tool_call',
+    call: { name: 'read_file', args: { path: 'a.txt' } },
+    rawResponse: 'raw-1'
+  });
+  const second = applyToolCall(first, {
+    type: 'tool_call',
+    call: { name: 'read_file', args: { path: 'b.txt' } },
+    rawResponse: 'raw-2'
+  });
+
+  assert.deepEqual(second, [
+    {
+      kind: 'tool',
+      callId: '',
+      rawResponse: 'raw-1',
+      toolName: 'read_file',
+      args: { path: 'a.txt' },
+      status: 'running',
+      expanded: false
+    },
+    {
+      kind: 'tool',
+      callId: '',
+      rawResponse: 'raw-2',
+      toolName: 'read_file',
+      args: { path: 'b.txt' },
+      status: 'running',
+      expanded: false
+    }
+  ]);
+});
+
+test('applyToolResult updates the matching unnamed tool call by raw response fallback', () => {
+  const current = [
+    {
+      kind: 'tool' as const,
+      callId: '',
+      rawResponse: 'raw-1',
+      toolName: 'read_file',
+      args: { path: 'a.txt' },
+      status: 'running' as const,
+      expanded: false
+    },
+    {
+      kind: 'tool' as const,
+      callId: '',
+      rawResponse: 'raw-2',
+      toolName: 'read_file',
+      args: { path: 'b.txt' },
+      status: 'running' as const,
+      expanded: false
+    }
+  ];
+
+  const updated = applyToolResult(current, {
+    type: 'tool_result',
+    result: { ok: true, content: 'b content' },
+    rawResponse: 'raw-2'
+  }, false);
+
+  assert.deepEqual(updated.map((message) => message.status), ['running', 'success']);
+});
+
+test('AgentLoop assigns distinct call ids to multiple OpenAI tool calls without provider ids', async () => {
+  const model = {
+    async complete() {
+      throw new Error('complete should not be used');
+    },
+    async completeWithTools() {
+      return {
+        content: 'Need files',
+        toolCalls: [
+          { name: 'read_file', args: { path: 'a.txt' }, rawResponse: 'raw-1' },
+          { name: 'read_file', args: { path: 'b.txt' }, rawResponse: 'raw-2' }
+        ]
+      };
+    }
+  };
+  const agent = new (await import('@yaca/agent-core')).AgentLoop({
+    model,
+    maxTurns: 1,
+    postponeToolCalls: 1,
+    tools: {
+      definitions() {
+        return [];
+      },
+      async execute(_name: string, args: Record<string, unknown>) {
+        return { ok: true, content: String(args.path) };
+      },
+      hint() {
+        return 'hint';
+      }
+    }
+  });
+
+  const events = await agent._run([{ role: 'user', content: 'read both' }]);
+  const calls = events.filter((event) => event.type === 'tool_call');
+  const results = events.filter((event) => event.type === 'tool_result');
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map((event) => event.type === 'tool_call' ? event.call.call_id : ''), ['call-1', 'call-2']);
+  assert.deepEqual(results.map((event) => event.type === 'tool_result' ? event.call_id : ''), ['call-1', 'call-2']);
 });
 
 test('createStoredAgentEventMessage persists tool calls, tool results, and errors', () => {
