@@ -6,7 +6,7 @@ import path from 'node:path';
 import { ConfigStore, SessionStore, handleBuiltinCommand, builtinCommands, type CliState } from '@yaca/agent-core';
 
 test('builtinCommands keeps command docs with handlers', () => {
-  assert.deepEqual(builtinCommands.map((command) => command.name), ['/help', '/model', '/baseurl', '/apikey', '/clear', '/resume', '/continue', '/exit']);
+  assert.deepEqual(builtinCommands.map((command) => command.name), ['/help', '/model', '/baseurl', '/apikey', '/clear', '/resume', '/continue', '/tool', '/exit']);
   assert.equal(builtinCommands.every((command) => command.usage && command.description), true);
 });
 

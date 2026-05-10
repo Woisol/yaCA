@@ -99,14 +99,14 @@ test('replace_file replaces a line and column range', async () => {
   assert.equal(await readFile(target, 'utf8'), 'alpha\nBo\ncharlie\n');
 });
 
-test('exec_command requires explicit approval', async () => {
+test('exec_command runs without tool-local approve flag when allowed by registry', async () => {
   const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
   const tools = createDefaultToolRegistry(workspace);
 
   const result = await tools.execute('exec_command', { command: 'echo hi' });
 
-  assert.equal(result.ok, false);
-  assert.match(result.content, /requires approve: true/);
+  assert.equal(result.ok, true);
+  assert.match(result.content.toLowerCase(), /hi/);
 });
 
 test('cwd returns the registry cwd', async () => {
@@ -146,6 +146,24 @@ test('confirm approval mode delegates each tool call to callback', async () => {
   assert.equal(result.ok, false);
   assert.match(result.content, /denied/i);
   assert.deepEqual(calls, ['read_file']);
+});
+
+test('confirm approval mode can deny exec_command before it runs', async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), 'yaca-tools-'));
+  const calls: string[] = [];
+  const tools = createDefaultToolRegistry(workspace, {
+    approvalMode: 'confirm',
+    confirm: async (request) => {
+      calls.push(String(request.args.command));
+      return false;
+    }
+  });
+
+  const result = await tools.execute('exec_command', { command: 'echo hi' });
+
+  assert.equal(result.ok, false);
+  assert.match(result.content, /denied/i);
+  assert.deepEqual(calls, ['echo hi']);
 });
 
 test('stat_path returns file info', async () => {

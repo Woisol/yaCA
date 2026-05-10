@@ -6,6 +6,9 @@ export type CliState = {
   baseUrl?: string;
   apiKey?: string;
   sessionId?: string;
+  configMtimeMs?: number;
+  trustMode?: boolean;
+  toolCallConfirm?: (request: { kind: 'tool' | 'command'; name: string; args: Record<string, unknown> }) => boolean | Promise<boolean>;
   config: YacaConfig;
   configStore: ConfigStore;
 };
@@ -97,6 +100,14 @@ export const builtinCommands: BuiltinCommand[] = [
       if (!session) return 'No sessions found for this project.';
       state.sessionId = session.id;
       return `Continued session ${session.id}`;
+    }
+  },
+  {
+    name: '/tool',
+    usage: '/tool',
+    description: 'Open tool allow-list selector',
+    handle() {
+      return '/tool';
     }
   },
   {

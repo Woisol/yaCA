@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from 'node:url';
 import { loadEnvFile, stdout as output } from 'node:process';
-import { AgentLoop, ConfigStore, createModelClient, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
+import { AgentLoop, ConfigStore, createModelClient, createToolPermissionController, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
 import { createDefaultToolRegistry } from '@yaca/agent-tools';
 import { startServer } from '@yaca/web/server.js';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
@@ -20,24 +20,40 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
   const configStore = new ConfigStore();
   const config = await configStore.load();
+  const configMtimeMs = await configStore.getMtimeMs();
 
   const model = args.model ?? config.model;
   const baseUrl = args.baseUrl ?? config.base_url;
-  const state: CliState = { model, baseUrl, apiKey: process.env.YACA_API_KEY ?? config.api_key, config, configStore };
+  const state: CliState = {
+    model,
+    baseUrl,
+    apiKey: process.env.YACA_API_KEY ?? config.api_key,
+    configMtimeMs,
+    trustMode: false,
+    config,
+    configStore
+  };
 
   // runtime
   const cwd = process.cwd();
   const store = new SessionStore({ workspace: cwd });
-  const tools = createDefaultToolRegistry(cwd);
-  const createAgent = () => new AgentLoop({
-    model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }),
-    maxTurns: config.max_turns,
-    maxToolRetry: config.max_tool_retry,
-    tools,
-    postponeToolCalls: config.tool_call.postpone_tool_calls,
-    toolCallCompatible: config.tool_call.tool_call_compatible,
-    toolCallTryFallback: config.tool_call.try_fallback
+  const toolPermissions = createToolPermissionController(state, {
+    request: (request) => state.toolCallConfirm?.(request) ?? false
   });
+  const tools = createDefaultToolRegistry(cwd);
+  const createAgent = () => {
+    const runtimeConfig = state.config;
+    return new AgentLoop({
+      model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }),
+      maxTurns: runtimeConfig.max_turns,
+      maxToolRetry: runtimeConfig.max_tool_retry,
+      tools,
+      postponeToolCalls: runtimeConfig.tool_call.postpone_tool_calls,
+      toolCallCompatible: runtimeConfig.tool_call.tool_call_compatible,
+      toolCallTryFallback: runtimeConfig.tool_call.try_fallback,
+      onBeforeToolCall: toolPermissions.confirm
+    });
+  };
 
   if (args.serve !== undefined) {
     startServer({ port: args.serve, agent: createAgent(), cwd });
@@ -52,7 +68,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
 
-  startInkRepl({ cwd, state, store, createAgent });
+  startInkRepl({ cwd, state, store, tools, toolPermissions, createAgent });
 }
 
 async function runOne(inputText: string, state: CliState, store: SessionStore, agent: AgentLoop, cwd: string): Promise<void> {

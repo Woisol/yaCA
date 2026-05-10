@@ -1,7 +1,7 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, render, Text, useApp, type RenderOptions } from 'ink';
-import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore } from '@yaca/agent-core';
-import type { AgentEvent } from '@yaca/types';
+import { handleBuiltinCommand, parseUserInput, type AgentLoop, type CliState, type SessionStore, type ToolPermissionController } from '@yaca/agent-core';
+import type { AgentEvent, ToolCall } from '@yaca/types';
 import { preserveInputAfterCurrentKeypress } from '../input/preserve.js';
 import { useKeyboardShortcuts } from '../input/registry.js';
 import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcuts/index.js';
@@ -10,6 +10,8 @@ import { Input } from './home/action/Input.js';
 import { StatusBar } from './home/action/StatusBar.js';
 import { Resume } from './home/pop/Resume.js';
 import { Rewind } from './home/pop/Rewind.js';
+import { ToolSelect } from './home/pop/ToolSelect.js';
+import { ConfirmToolCall } from './home/pop/ConfirmToolCall.js';
 import { SessionMeta } from '@yaca/agent-core/storage/session-store.js';
 import {
   appendChatLine,
@@ -52,6 +54,8 @@ export type ReplRuntime = {
   cwd: string;
   state: CliState;
   store: SessionStore;
+  tools?: { definitions?(): Array<{ name: string }> };
+  toolPermissions?: ToolPermissionController;
   createAgent(): AgentLoop;
 };
 
@@ -74,7 +78,15 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   const [userMessageDraft, setUserMessageDraft] = useState('');
   const [showRewind, setShowRewind] = useState(false);
   const [showResume, setShowResume] = useState(false);
+  const [showToolSelect, setShowToolSelect] = useState(false);
   const [showPathCompletion, setShowPathCompletion] = useState(false);
+  const [allowedTools, setAllowedTools] = useState(runtime.state.config.tool_call.allow.tools);
+  const [trustMode, setTrustMode] = useState(runtime.state.trustMode ?? false);
+  const [pendingToolApproval, setPendingToolApproval] = useState<{
+    call: ToolCall;
+    kind: 'tool' | 'command';
+    resolve(approved: boolean): void;
+  } | null>(null);
   const [resumeSessions, setResumeSessions] = useState<SessionMeta[]>([]);
   const activeTurnControllerRef = useRef<AbortController | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -86,6 +98,10 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
       .map((msg) => msg.text)
       .filter((text): text is string => typeof text === 'string' && text.length > 0);
   }, [messages]);
+
+  useEffect(() => {
+    setAllowedTools(runtime.state.config.tool_call.allow.tools);
+  }, [runtime.state.config]);
 
   const appendLine = (kind: string, text: string) => {
     setMessages((current) => appendChatLine(current, kind as ChatMessage['kind'], text));
@@ -100,7 +116,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     userMessageDraft,
     lastCtrlCAt,
     lastEscapeAt,
-    shortcutsEnabled: !(showRewind || showResume || showPathCompletion),
+    shortcutsEnabled: !(showRewind || showResume || showToolSelect || showPathCompletion || !!pendingToolApproval),
     now: Date.now,
     setInput,
     setBusy,
@@ -122,11 +138,22 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
         return next;
       });
     },
+    toggleTrustMode: () => {
+      setTrustMode((current) => {
+        const next = !current;
+        runtime.state.trustMode = next;
+        appendLine('status', next ? 'Trust mode enabled. Tool calls will run without prompts.' : 'Trust mode disabled. Tool calls require allow-list or confirmation.');
+        return next;
+      });
+    },
     openRewind: () => {
       setShowRewind(true);
     },
     openResume: () => {
       void openResume();
+    },
+    openToolSelect: () => {
+      setShowToolSelect(true);
     },
     submit: (text) => {
       void submit(text);
@@ -153,6 +180,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   async function submit(text: string): Promise<void> {
     setBusy(true);
     try {
+      await runtime.toolPermissions?.refreshConfigIfChanged();
       const trimmed = text.trim();
       if (trimmed.startsWith('/')) {
         appendLine('user', reduceMessageFile(text));
@@ -186,10 +214,18 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
       await openResume();
       return;
     }
+    if (trimmed === '/tool') {
+      setShowToolSelect(true);
+      return;
+    }
     const sessionIdBeforeCommand = runtime.state.sessionId;
     const commandResult = await handleBuiltinCommand(trimmed, runtime.state, runtime.store);
     if (commandResult === '/exit') {
       exit();
+      return;
+    }
+    if (commandResult === '/tool') {
+      setShowToolSelect(true);
       return;
     }
     if (commandResult === undefined) {
@@ -205,6 +241,7 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
   }
 
   async function openResume(): Promise<void> {
+    await runtime.toolPermissions?.refreshConfigIfChanged();
     setResumeSessions(await runtime.store.listSessions());
     setShowResume(true);
   }
@@ -230,6 +267,46 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
     }
   }
 
+  async function confirmToolCall(call: ToolCall): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      setPendingToolApproval({ call, kind: 'tool', resolve });
+    });
+  }
+
+  async function confirmCommandCall(call: ToolCall): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      setPendingToolApproval({ call, kind: 'command', resolve });
+    });
+  }
+
+  function resolvePendingToolApproval(approved: boolean): void {
+    const pending = pendingToolApproval;
+    if (!pending) return;
+    pending.resolve(approved);
+    setPendingToolApproval(null);
+  }
+
+  function toggleAllowedTool(tool: string): void {
+    const nextAllowedTools = allowedTools.includes(tool)
+      ? allowedTools.filter((item) => item !== tool)
+      : [...allowedTools, tool];
+    setAllowedTools(nextAllowedTools);
+    runtime.state.config.tool_call.allow.tools = nextAllowedTools;
+    void runtime.state.configStore.save(runtime.state.config).then(async () => {
+      runtime.state.configMtimeMs = await runtime.state.configStore.getMtimeMs();
+    });
+  }
+
+  const availableTools = useMemo(() => {
+    return runtime.tools?.definitions?.().map((tool) => tool.name) ?? [];
+  }, [runtime.tools]);
+
+  runtime.state.trustMode = trustMode;
+  runtime.state.toolCallConfirm = async ({ kind, name, args }) => {
+    const call = { name, args };
+    return kind === 'command' ? confirmCommandCall(call) : confirmToolCall(call);
+  };
+
   return (
     <Box flexDirection="column">
       {showRewind ? (
@@ -243,13 +320,13 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
             <ChatArea messages={messages} hasSession={!!runtime.state.sessionId} />
             <Input
               cwd={runtime.cwd}
-              focus={!busy && !(showRewind || showResume)}
+              focus={!busy && !(showRewind || showResume || showToolSelect || !!pendingToolApproval)}
               input={input}
               setInput={updateInput}
               onCompletionOpenChange={setShowPathCompletion}
               onSubmit={submitInput}
             />
-            <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} trustMode={false} />
+            <StatusBar busy={busy} model={runtime.state.model} cwd={runtime.cwd} trustMode={trustMode} />
         </>
       )}
       {showResume ? (
@@ -258,6 +335,21 @@ function YacaRepl({ runtime }: { runtime: ReplRuntime }) {
         }} onQuit={() => {
             setShowResume(false);
           }} />
+      ) : null}
+      {pendingToolApproval ? (
+        <ConfirmToolCall
+          title={pendingToolApproval.kind === 'command' ? 'Allow command execution?' : `Allow tool call ${pendingToolApproval.call.name}?`}
+          detail={pendingToolApproval.kind === 'command' ? String(pendingToolApproval.call.args.command ?? '') : JSON.stringify(pendingToolApproval.call.args)}
+          onSelect={resolvePendingToolApproval}
+        />
+      ) : null}
+      {showToolSelect ? (
+        <ToolSelect
+          tools={availableTools}
+          allowTools={allowedTools}
+          onSelect={toggleAllowedTool}
+          onQuit={() => setShowToolSelect(false)}
+        />
       ) : null}
     </Box>
   );

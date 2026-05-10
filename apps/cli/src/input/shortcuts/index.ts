@@ -24,8 +24,10 @@ export type ReplShortcutContext = {
   abortCurrentTurn?(): void;
   preserveInputAfterShortcut?(): void;
   toggleToolOutput(): void;
+  toggleTrustMode(): void;
   openRewind(): void;
   openResume(): void;
+  openToolSelect(): void;
   submit(text: string): void;
   exit(): void;
 };
@@ -54,6 +56,14 @@ export function createReplShortcuts(): KeyboardShortcut<ReplShortcutContext>[] {
       run: (context) => {
         context.preserveInputAfterShortcut?.();
         context.toggleToolOutput();
+      }
+    },
+    {
+      name: 'toggle-trust-mode',
+      match: (_input, key) => key.shift && key.tab,
+      run: (context) => {
+        context.preserveInputAfterShortcut?.();
+        context.toggleTrustMode();
       }
     },
     {

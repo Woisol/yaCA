@@ -12,6 +12,8 @@ type ToolExecutor = {
   definitions?(): ToolDefinition[];
 };
 
+export type ToolCallApproval = (call: ToolCall) => boolean | Promise<boolean>;
+
 export class AgentLoop {
   private nextCallSequence = 1;
   private readonly model: ModelClient;
@@ -21,14 +23,16 @@ export class AgentLoop {
   private readonly postponeToolCalls: number;
   private readonly streamAssistantTurn: AssistantTurnStrategy;
   private readonly toolCallCompatible: boolean;
+  private readonly onBeforeToolCall?: ToolCallApproval;
 
-  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean; toolCallTryFallback?: boolean }) {
+  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean; toolCallTryFallback?: boolean; onBeforeToolCall?: ToolCallApproval }) {
     this.model = options.model;
     this.tools = options.tools;
     this.postponeToolCalls = options.postponeToolCalls;
     this.maxTurns = options.maxTurns ?? 8;
     this.maxToolRetry = options.maxToolRetry ?? 5;
     this.toolCallCompatible = options.toolCallCompatible ?? false;
+    this.onBeforeToolCall = options.onBeforeToolCall;
     this.streamAssistantTurn = options.toolCallCompatible
       ? createSxmlAssistantTurn(this.model, { tryFallback: options.toolCallTryFallback })
       : createOpenAICompatibleAssistantTurn(this.model);
@@ -84,7 +88,7 @@ export class AgentLoop {
       for (const call of turnResult.calls) {
         const rawResponse = formatToolCallRawResponse(call);
         yield { type: 'tool_call', call, rawResponse };
-        const result = await executeToolSafely(this.tools, call);
+        const result = await this.executeApprovedToolCall(call);
         yield { type: 'tool_result', call_id: call.call_id, result, rawResponse };
         messages.push(createToolHistoryMessage(call, result, this.toolCallCompatible));
         consecutiveToolFailures = nextConsecutiveToolFailures(consecutiveToolFailures, result);
@@ -100,6 +104,14 @@ export class AgentLoop {
 
   private createCallId(): string {
     return `call-${this.nextCallSequence++}`;
+  }
+
+  private async executeApprovedToolCall(call: ToolCall): Promise<ToolResult> {
+    const approved = await this.onBeforeToolCall?.(call);
+    if (approved === false) {
+      return { ok: false, content: `Tool call denied: ${call.name}` };
+    }
+    return executeToolSafely(this.tools, call);
   }
 }
 

@@ -1,9 +1,12 @@
 export { AgentLoop } from './agent-loop.js';
+export type { ToolCallApproval } from './agent-loop.js';
 export { builtinCommands, handleBuiltinCommand } from './preprocess/commands.js';
 export type { BuiltinCommand, CliState } from './preprocess/commands.js';
 export { parseUserInput } from './preprocess/input.js';
 export { ConfigStore } from './storage/config-store.js';
 export { SessionStore } from './storage/session-store.js';
+export { createToolPermissionController } from './tools/permissions.js';
+export type { ToolPermissionController, ToolPermissionPrompt, ToolPermissionRequest } from './tools/permissions.js';
 export { createModelClient } from './llm/model-client.js';
 export { createStoredAgentEventMessage, parseStoredAgentEvent } from './history/agent-events.js';
 export { storedChatMessageToModelMessage, storedChatMessagesToModelMessages } from './history/model-messages.js';

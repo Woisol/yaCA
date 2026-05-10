@@ -523,3 +523,50 @@ test('AgentLoop resets consecutive tool failure count after a successful tool re
   assert.equal(finalEvent?.type, 'assistant_text');
   assert.match(finalEvent?.type === 'assistant_text' ? finalEvent.text : '', /failed 2 times\b/i);
 });
+
+test('AgentLoop asks for tool approval before execution and denies when callback returns false', async () => {
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async completeWithTools() {
+      return {
+        content: 'Need file',
+        toolCalls: [{ call_id: 'call-1', name: 'read_file', args: { path: 'a.txt' }, rawResponse: 'raw-1' }]
+      };
+    }
+  };
+  const approvals: string[] = [];
+  const executed: string[] = [];
+  const tools = {
+    definitions() {
+      return [];
+    },
+    async execute(name: string): Promise<ToolResult> {
+      executed.push(name);
+      return { ok: true, content: 'file content' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({
+    model,
+    tools,
+    maxTurns: 1,
+    postponeToolCalls: 1,
+    onBeforeToolCall: async (call) => {
+      approvals.push(call.name);
+      return false;
+    }
+  });
+
+  const events = await agent._run([{ role: 'user', content: 'read it' }]);
+  const toolResult = events.find((event) => event.type === 'tool_result');
+
+  assert.deepEqual(approvals, ['read_file']);
+  assert.deepEqual(executed, []);
+  assert.equal(toolResult?.type, 'tool_result');
+  assert.equal(toolResult?.type === 'tool_result' ? toolResult.result.ok : true, false);
+  assert.match(toolResult?.type === 'tool_result' ? toolResult.result.content : '', /denied/i);
+});

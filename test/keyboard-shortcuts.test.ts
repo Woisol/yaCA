@@ -163,6 +163,25 @@ test('createReplShortcuts toggles tool output on ctrl+o', () => {
   assert.equal(preserved, true);
 });
 
+test('createReplShortcuts toggles trust mode on shift+tab', () => {
+  let toggled = false;
+  let preserved = false;
+  const context = createContext({
+    preserveInputAfterShortcut() {
+      preserved = true;
+    },
+    toggleTrustMode() {
+      toggled = true;
+    }
+  });
+
+  const handled = dispatchShortcutInput(createReplShortcuts(), '', key({ tab: true, shift: true }), context);
+
+  assert.equal(handled, true);
+  assert.equal(toggled, true);
+  assert.equal(preserved, true);
+});
+
 test('createReplShortcuts preserves input on ctrl+v hint', () => {
   let preserved = false;
   const context = createContext({
@@ -259,8 +278,10 @@ function createContext(overrides: Partial<TestReplContext> = {}): TestReplContex
       context.exited = true;
     },
     toggleToolOutput() {},
+    toggleTrustMode() {},
     openRewind() {},
     openResume() {},
+    openToolSelect() {},
     submit() {},
     ...overrides
   };
