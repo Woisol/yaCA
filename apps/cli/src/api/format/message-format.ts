@@ -11,7 +11,7 @@ export function formatStoredMessageContent(content: StoredChatMessage['content']
 
 export function formatMessagePart(part: MessagePart): string {
   if (part.type === 'text') return part.text;
-  return '[image]';
+  return formatImagePart(part);
 }
 
 export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage[] {
@@ -46,9 +46,13 @@ export function chatMessagesToStored(messages: ChatMessage[]): StoredChatMessage
 
 export function reduceMessageFile(rawMessage: string): string {
   const filePattern = /\n\n\[File: (.+?)\]\n[\s\S]*?\[End of File\]\n\n/g;
+  const imagePattern = /\n\n\[Image: (.+?)\]\n\[End of Image\]\n\n/g;
   return rawMessage.replace(filePattern, (_match, filePath: string) => {
     const chosen = pathPrefferentiallyRelative(filePath);
     return `[File:${chosen}]`;
+  }).replace(imagePattern, (_match, filePath: string) => {
+    const chosen = pathPrefferentiallyRelative(filePath);
+    return `[Image:${chosen}]`;
   });
 }
 
@@ -56,8 +60,14 @@ export function reduceMessageFileToPathMention(rawMessage: string): string {
   const withoutFileContent = rawMessage.replace(/\n\n\[File: (.+?)\]\n[\s\S]*?\[End of File\]\n\n/g, (_match, filePath: string) => {
     const chosen = pathPrefferentiallyRelative(filePath.trim());
     return `@${formatPathMention(chosen)}`;
+  }).replace(/\n\n\[Image: (.+?)\]\n\[End of Image\]\n\n/g, (_match, filePath: string) => {
+    const chosen = pathPrefferentiallyRelative(filePath.trim());
+    return `@${formatPathMention(chosen)}`;
   });
-  return withoutFileContent.replace(/\n\n\[File:([^\]]+)\]\n\n/g, (_match, filePath: string) => {
+  return withoutFileContent.replace(/\n\n\[(File|Image):([^\]]+)\]\n\n/g, (_match, _kind: string, filePath: string) => {
+    const chosen = pathPrefferentiallyRelative(filePath.trim());
+    return `@${formatPathMention(chosen)}`;
+  }).replace(/\[(File|Image):([^\]]+)\]/g, (_match, _kind: string, filePath: string) => {
     const chosen = pathPrefferentiallyRelative(filePath.trim());
     return `@${formatPathMention(chosen)}`;
   });
@@ -65,4 +75,10 @@ export function reduceMessageFileToPathMention(rawMessage: string): string {
 
 function formatPathMention(filePath: string): string {
   return /\s/.test(filePath) ? `"${filePath.replaceAll('"', '\\"')}"` : filePath;
+}
+
+function formatImagePart(part: Extract<MessagePart, { type: 'image_url' }>): string {
+  const imagePath = part.meta?.path;
+  if (!imagePath) return '[image]';
+  return `[Image:${pathPrefferentiallyRelative(imagePath)}]`;
 }

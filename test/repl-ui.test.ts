@@ -294,14 +294,24 @@ test('applyRewindSelection trims to before selected user message and restores it
   });
 });
 
-test('applyRewindSelection leaves inline reduced file markers unchanged', () => {
+test('applyRewindSelection restores inline reduced file markers to path mentions', () => {
   const current = [
     { kind: 'user' as const, text: 'summarize [File:src/index.ts]' },
     { kind: 'assistant' as const, text: 'answer' }
   ];
 
   const result = applyRewindSelection(current, 0);
-  assert.equal(result.input, 'summarize [File:src/index.ts]');
+  assert.equal(result.input, `summarize @src${path.sep}index.ts`);
+});
+
+test('applyRewindSelection restores inline reduced image markers to path mentions', () => {
+  const current = [
+    { kind: 'user' as const, text: 'describe [Image:assets/screen.png]' },
+    { kind: 'assistant' as const, text: 'answer' }
+  ];
+
+  const result = applyRewindSelection(current, 0);
+  assert.equal(result.input, `describe @assets${path.sep}screen.png`);
 });
 
 test('applyRewindSelection ignores non-user selected messages', () => {

@@ -235,8 +235,15 @@ export function toOpenAIMessages(messages: ChatMessage[]): ChatCompletionMessage
 function formatMessageContent(content: ChatMessage['content']): string | MessagePart[] | null {
   if (content === null) return null;
   if (typeof content === 'string') return content;
-  if (Array.isArray(content)) return content;
+  if (Array.isArray(content)) return content.map(toOpenAIMessagePart);
   return JSON.stringify(content);
+}
+
+function toOpenAIMessagePart(part: MessagePart): MessagePart {
+  if (part.type === 'image_url') {
+    return { type: 'image_url', image_url: part.image_url };
+  }
+  return part;
 }
 
 function toOpenAIToolDefinition(tool: ToolDefinition): OpenAIToolDefinition {

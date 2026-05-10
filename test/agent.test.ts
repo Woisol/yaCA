@@ -129,6 +129,43 @@ test('AgentLoop streams OpenAI-compatible assistant text before executing tool c
   ]);
 });
 
+test('AgentLoop replaces empty OpenAI tool call ids before emitting tool results', async () => {
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async completeWithTools() {
+      return {
+        content: 'Need file',
+        toolCalls: [{ call_id: '', name: 'read_file', args: { path: 'a.txt' }, rawResponse: 'raw-1' }]
+      };
+    }
+  };
+  const agent = new AgentLoop({
+    model,
+    maxTurns: 1,
+    postponeToolCalls: 1,
+    tools: {
+      definitions() {
+        return [];
+      },
+      async execute(): Promise<ToolResult> {
+        return { ok: true, content: 'file content' };
+      },
+      hint() {
+        return 'hint';
+      }
+    }
+  });
+
+  const events = await agent._run([{ role: 'user', content: 'read it' }]);
+  const toolCall = events.find((event) => event.type === 'tool_call');
+  const toolResult = events.find((event) => event.type === 'tool_result');
+
+  assert.equal(toolCall?.type === 'tool_call' ? toolCall.call.call_id : undefined, 'call-1');
+  assert.equal(toolResult?.type === 'tool_result' ? toolResult.call_id : undefined, 'call-1');
+});
+
 test('AgentLoop streams OpenAI-compatible think deltas as assistant think events', async () => {
   const model: ModelClient = {
     async complete() {

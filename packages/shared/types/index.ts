@@ -10,6 +10,9 @@ export type ImageUrlPart = {
   image_url: {
     url: string;
   };
+  meta?: {
+    path?: string;
+  };
 };
 
 export type MessagePart = TextPart | ImageUrlPart;

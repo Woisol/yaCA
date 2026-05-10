@@ -83,7 +83,8 @@ async function tryCreateImagePart(filePath: string, yacaHome: string): Promise<M
     await cacheBase64Image(yacaHome, filePath, data.toString('base64'));
     return {
       type: 'image_url',
-      image_url: { url: `data:${mimeType};base64,${data.toString('base64')}` }
+      image_url: { url: `data:${mimeType};base64,${data.toString('base64')}` },
+      meta: { path: filePath }
     };
   } catch {
     return undefined;

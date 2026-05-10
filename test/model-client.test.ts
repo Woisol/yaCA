@@ -297,3 +297,21 @@ test('toOpenAIMessages preserves image parts and standard tool message fields', 
     }
   ]);
 });
+
+test('toOpenAIMessages strips local image metadata from request payload', () => {
+  const messages = toOpenAIMessages([{
+    role: 'user',
+    content: [
+      { type: 'text', text: 'describe' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,abc' }, meta: { path: 'screen.png' } } as any
+    ]
+  }]);
+
+  assert.deepEqual(messages, [{
+    role: 'user',
+    content: [
+      { type: 'text', text: 'describe' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,abc' } }
+    ]
+  }]);
+});

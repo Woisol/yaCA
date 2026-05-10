@@ -22,7 +22,7 @@ test('parseUserInput converts local image @path references to image_url parts', 
 
   assert.deepEqual(parts, [
     { type: 'text', text: 'explain ' },
-    { type: 'image_url', image_url: { url: 'data:image/png;base64,iVBORw==' } },
+    { type: 'image_url', image_url: { url: 'data:image/png;base64,iVBORw==' }, meta: { path: imagePath } },
     { type: 'text', text: ' please' }
   ]);
 });

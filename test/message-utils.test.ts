@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { storedChatMessageToModelMessage, storedChatMessagesToModelMessages } from '@yaca/agent-core';
-import { reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
+import { formatStoredMessageContent, reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
 
 test('stored tool parse error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'parse_tool_call', args: { content: '{}' } }, _rawResponse: '<tool_call name="parse_tool_call">{"content":"{}"}</tool_call>' } };
@@ -103,18 +103,44 @@ test('reduceMessageFile handles multiple file references with blank line delimit
   assert.equal(reduced, `[File:src${path.sep}index.ts][File:test${path.sep}setup.ts]`);
 });
 
-test('reduceMessageFileToPathMention keeps inline reduced file markers unchanged', () => {
+test('formatStoredMessageContent reduces image parts with local path metadata for display', () => {
+  const imagePath = path.join(process.cwd(), 'assets', 'screen.png');
+  const formatted = formatStoredMessageContent([
+    { type: 'text', text: 'explain ' },
+    { type: 'image_url', image_url: { url: 'data:image/png;base64,abc' }, meta: { path: imagePath } } as any,
+    { type: 'text', text: ' please' }
+  ]);
+
+  assert.equal(formatted, `explain [Image:assets${path.sep}screen.png] please`);
+});
+
+test('reduceMessageFile converts full image blocks to reduced image markers', () => {
+  const imagePath = path.join(process.cwd(), 'assets', 'screen.png');
+  const rawMessage = `see \n\n[Image: ${imagePath}]\n[End of Image]\n\n now`;
+  const reduced = reduceMessageFile(rawMessage);
+
+  assert.equal(reduced, `see [Image:assets${path.sep}screen.png] now`);
+});
+
+test('reduceMessageFileToPathMention converts inline reduced file markers to @path references', () => {
   const rawMessage = `summarize [File:src${path.sep}index.ts] and [File:test${path.sep}setup.ts]`;
   const restored = reduceMessageFileToPathMention(rawMessage);
 
-  assert.equal(restored, `summarize [File:src${path.sep}index.ts] and [File:test${path.sep}setup.ts]`);
+  assert.equal(restored, `summarize @src${path.sep}index.ts and @test${path.sep}setup.ts`);
 });
 
-test('reduceMessageFileToPathMention keeps inline reduced file markers with spaces unchanged', () => {
+test('reduceMessageFileToPathMention converts inline reduced image markers to @path references', () => {
+  const rawMessage = `summarize [Image:assets${path.sep}screen.png]`;
+  const restored = reduceMessageFileToPathMention(rawMessage);
+
+  assert.equal(restored, `summarize @assets${path.sep}screen.png`);
+});
+
+test('reduceMessageFileToPathMention converts inline reduced file markers with spaces to quoted @path references', () => {
   const rawMessage = `[File:docs${path.sep}my note.md]`;
   const restored = reduceMessageFileToPathMention(rawMessage);
 
-  assert.equal(restored, `[File:docs${path.sep}my note.md]`);
+  assert.equal(restored, `@"docs${path.sep}my note.md"`);
 });
 
 test('reduceMessageFileToPathMention converts reduced file blocks with spaces back to quoted @path references', () => {
@@ -122,6 +148,21 @@ test('reduceMessageFileToPathMention converts reduced file blocks with spaces ba
   const restored = reduceMessageFileToPathMention(rawMessage);
 
   assert.equal(restored, `@"docs${path.sep}my note.md"`);
+});
+
+test('reduceMessageFileToPathMention converts full image blocks back to @path references', () => {
+  const imagePath = path.join(process.cwd(), 'assets', 'screen.png');
+  const rawMessage = `inspect \n\n[Image: ${imagePath}]\n[End of Image]\n\n now`;
+  const restored = reduceMessageFileToPathMention(rawMessage);
+
+  assert.equal(restored, `inspect @assets${path.sep}screen.png now`);
+});
+
+test('reduceMessageFileToPathMention converts reduced image blocks back to @path references', () => {
+  const rawMessage = `\n\n[Image: assets${path.sep}screen.png]\n\n`;
+  const restored = reduceMessageFileToPathMention(rawMessage);
+
+  assert.equal(restored, `@assets${path.sep}screen.png`);
 });
 
 test('reduceMessageFileToPathMention converts full file blocks back to @path references', () => {

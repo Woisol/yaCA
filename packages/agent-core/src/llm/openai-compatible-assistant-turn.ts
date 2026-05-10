@@ -27,7 +27,7 @@ export function createOpenAICompatibleAssistantTurn(model: ModelClient): (messag
         }
         return {
           response: result.value.content || response,
-          calls: result.value.toolCalls.map((call) => ({ ...call, call_id: call.call_id ?? context.createCallId() })),
+          calls: result.value.toolCalls.map((call) => ({ ...call, call_id: call.call_id || context.createCallId() })),
           parseFailures: [],
           stopped: false
         };
@@ -43,7 +43,7 @@ export function createOpenAICompatibleAssistantTurn(model: ModelClient): (messag
       }
       return {
         response,
-        calls: result.toolCalls.map((call) => ({ ...call, call_id: call.call_id ?? context.createCallId() })),
+        calls: result.toolCalls.map((call) => ({ ...call, call_id: call.call_id || context.createCallId() })),
         parseFailures: [],
         stopped: false
       };
