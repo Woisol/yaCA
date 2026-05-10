@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "../..",
+    "types": ["node"],
+    "paths": {
+      "@yaca/agent-core": ["../../packages/agent-core/src/index.ts"],
+      "@yaca/agent-core/*": ["../../packages/agent-core/src/*"],
+      "@yaca/types": ["../../packages/shared/types/index.ts"],
+      "@yaca/types/*": ["../../packages/shared/types/*"],
+      "@yaca/ui": ["../../packages/shared/ui/src/index.ts"],
+      "@yaca/ui/*": ["../../packages/shared/ui/src/*"],
+      "@yaca/utils/*": ["../../packages/utils/*"]
+    }
+  },
+  "include": [
+    "src/server.ts",
+    "src/api/types.ts",
+    "../../packages/shared/ui/src/**/*.ts"
+  ]
+}

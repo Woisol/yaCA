@@ -2,5 +2,6 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'packages/shared/*'
 allowBuilds:
   esbuild: true

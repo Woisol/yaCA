@@ -3,7 +3,6 @@ import { pathToFileURL } from 'node:url';
 import { loadEnvFile, stdout as output } from 'node:process';
 import { AgentLoop, ConfigStore, createModelClient, createToolPermissionController, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
 import { createDefaultToolRegistry } from '@yaca/agent-tools';
-import { startServer } from '@yaca/web/server.js';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
 import { IS_DEV } from '../packages/shared/constants/dev.js';
 
@@ -64,7 +63,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (args.serve !== undefined) {
-    startServer({ port: args.serve, agent: createAgent(), cwd });
+    const { startYacaWebServer } = await import('@woisol-g/yaca-web/server.js');
+    startYacaWebServer({ port: args.serve, cwd, state, store, tools, toolPermissions, createAgent });
     output.write(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
     return;
   }

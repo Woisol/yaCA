@@ -26,6 +26,12 @@
       "@yaca/web/*": [
         "./apps/web/src/*"
       ],
+      "@woisol-g/yaca-web/server.js": [
+        "./apps/yaca-web/src/server.ts"
+      ],
+      "@woisol-g/yaca-web/*": [
+        "./apps/yaca-web/src/*"
+      ],
       "@yaca/agent-core": [
         "./packages/agent-core/src/index.ts"
       ],
@@ -46,6 +52,9 @@
       ],
       "@yaca/ui/*": [
         "./packages/shared/ui/src/*"
+      ],
+      "@yaca/ui": [
+        "./packages/shared/ui/src/index.ts"
       ],
       "@yaca/utils/*": [
         "./packages/utils/*"

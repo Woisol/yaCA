@@ -47,8 +47,10 @@
         "<node_internals>/**"
       ],
       "runtimeExecutable": "${workspaceFolder}\\node_modules\\.bin\\tsx.cmd",
+
       "args": [
-        "${workspaceFolder}\\apps\\index.ts"
+        "${workspaceFolder}\\apps\\index.ts",
+        "-c"
       ],
       "env": {
         "DEBUG": "true",

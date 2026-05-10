@@ -1,16 +1,7 @@
 import { reduceMessageFile } from '../../../api/format/index.js';
 import { Box, Text, useStdout } from 'ink';
-
-export type ChatMessage = {
-  kind: 'user' | 'assistant' | 'tool' | 'status' | 'error';
-  text?: string;
-  callId?: string;
-  toolName?: string;
-  args?: Record<string, unknown>;
-  status?: 'running' | 'success' | 'error';
-  result?: string;
-  expanded?: boolean;
-};
+import type { ChatMessage } from '@yaca/ui';
+export type { ChatMessage } from '@yaca/ui';
 
 export function ChatArea({ messages, hasSession }: { messages: ChatMessage[]; hasSession: boolean }) {
   const { stdout } = useStdout();
