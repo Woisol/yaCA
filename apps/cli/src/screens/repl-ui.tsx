@@ -8,8 +8,8 @@ import { createReplShortcuts, type ReplShortcutContext } from '../input/shortcut
 import { ChatArea, ChatMessage } from './home/chat/ChatArea.js';
 import { Input } from './home/action/Input.js';
 import { StatusBar } from './home/action/StatusBar.js';
-import { Resume } from './home/action/Resume.js';
-import { Rewind } from './home/action/Rewind.js';
+import { Resume } from './home/pop/Resume.js';
+import { Rewind } from './home/pop/Rewind.js';
 import { SessionMeta } from '@yaca/agent-core/storage/session-store.js';
 import {
   appendChatLine,

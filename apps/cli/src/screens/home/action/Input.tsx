@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { EnhancedTextInput } from './enhanced-text-input.js';
-import { applyPathCompletion, getPathCompletionState, type PathCompletionState } from './path-completions.js';
+import { EnhancedTextInput } from '../../components/enhanced-text-input.js';
+import { applyPathCompletion, getPathCompletionState, type PathCompletionState } from '../../../api/chat/path-completions.js';
 
 type InputProps = {
   input: string;

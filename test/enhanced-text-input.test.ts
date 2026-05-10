@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyTextInputKey, clampCursorOffset, moveWordLeft, moveWordRight } from '../apps/cli/src/screens/home/action/enhanced-text-input.js';
+import { applyTextInputKey, clampCursorOffset, moveWordLeft, moveWordRight } from '../apps/cli/src/screens/components/enhanced-text-input.js';
 
 test('clampCursorOffset keeps cursor within text bounds', () => {
   assert.equal(clampCursorOffset(-1, 'abc'), 0);

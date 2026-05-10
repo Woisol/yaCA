@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { applyPathCompletion, getPathCompletionState } from '../apps/cli/src/screens/home/action/path-completions.js';
+import { applyPathCompletion, getPathCompletionState } from '../apps/cli/src/api/chat/path-completions.js';
 
 test('getPathCompletionState lists relative matches after @', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'yaca-complete-'));
