@@ -56,7 +56,7 @@ function storedChatMessageToSxmlModelMessage(message: ChatMessage): ChatMessage 
     }
     return { role: 'tool', content: formatStoredMessageContent(message.content) };
   }
-  return { role: message.role, content: formatStoredMessageContent(message.content) };
+  return { role: message.role, content: normalizeModelContent(message.content) };
 }
 
 function parseToolEventContent(content: ChatMessage['content']): Extract<ChatMessage['content'], { type: string }> | undefined {
@@ -78,4 +78,11 @@ function formatStoredMessageContent(content: ChatMessage['content']): string {
     return content.map((part) => part.type === 'text' ? part.text : '[image]').join('');
   }
   return JSON.stringify(content);
+}
+
+function normalizeModelContent(content: ChatMessage['content']): ChatMessage['content'] {
+  if (Array.isArray(content) && content.every((part) => part.type === 'text')) {
+    return content.map((part) => part.text).join('');
+  }
+  return content;
 }

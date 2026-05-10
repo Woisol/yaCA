@@ -2,7 +2,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import type { MessagePart } from '@yaca/types';
+import type { ChatMessage, MessagePart } from '@yaca/types';
 import { YACA_HOME } from '../constants/path.js';
 import { pathPrefferentiallyRelative } from '@yaca/utils/path.js';
 
@@ -20,7 +20,7 @@ export type ParseUserInputOptions = {
 /**
  * 用户输入预处理入口
  */
-export async function parseUserInput(input: string, cwd = process.cwd(), options: ParseUserInputOptions = {}): Promise<MessagePart[]> {
+export async function parseUserInput(input: string, cwd = process.cwd(), options: ParseUserInputOptions = {}): Promise<ChatMessage['content']> {
   const parts: MessagePart[] = [];
   const matcher = /@(?:("[^"]+")|([^\s]+))/g;
   let cursor = 0;
@@ -55,7 +55,7 @@ export async function parseUserInput(input: string, cwd = process.cwd(), options
     parts.push({ type: 'text', text });
   }
 
-  return parts.length === 0 ? [{ type: 'text', text: input }] : mergeTextParts(parts);
+  return normalizeMessageParts(parts.length === 0 ? [{ type: 'text', text: input }] : mergeTextParts(parts));
 }
 
 async function tryCreateFilePart(filePath: string, yacaHome: string): Promise<MessagePart | undefined> {
@@ -108,6 +108,13 @@ function mergeTextParts(parts: MessagePart[]): MessagePart[] {
     }
   }
   return merged;
+}
+
+function normalizeMessageParts(parts: MessagePart[]): string | MessagePart[] {
+  if (parts.every((part) => part.type === 'text')) {
+    return parts.map((part) => part.text).join('');
+  }
+  return parts;
 }
 
 async function readFileWithMeta(filePath: string, encoding?: BufferEncoding): Promise<string> {

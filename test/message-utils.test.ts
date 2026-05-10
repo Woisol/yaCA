@@ -57,6 +57,30 @@ test('storedChatMessagesToModelMessages keeps sxml history when compatible mode 
   ]);
 });
 
+test('storedChatMessagesToModelMessages preserves multimodal user message parts', () => {
+  const imagePart = {
+    type: 'image_url' as const,
+    image_url: { url: 'data:image/png;base64,abc' }
+  };
+  const formatted = storedChatMessagesToModelMessages([
+    { role: 'user', content: [{ type: 'text', text: 'describe ' }, imagePart] }
+  ]);
+
+  assert.deepEqual(formatted, [
+    { role: 'user', content: [{ type: 'text', text: 'describe ' }, imagePart] }
+  ]);
+});
+
+test('storedChatMessagesToModelMessages normalizes legacy text-only parts to string', () => {
+  const formatted = storedChatMessagesToModelMessages([
+    { role: 'user', content: [{ type: 'text', text: 'hello ' }, { type: 'text', text: 'model' }] }
+  ]);
+
+  assert.deepEqual(formatted, [
+    { role: 'user', content: 'hello model' }
+  ]);
+});
+
 test('reduceMessageFile converts full file paths to relative paths in [File:path] format', () => {
   const filePath = path.join(process.cwd(), 'test', 'file.md');
   const rawMessage = `some text\n\n[File: ${filePath}]\nFile content here\n[End of File]\n\nmore text`;

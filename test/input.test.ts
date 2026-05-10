@@ -5,6 +5,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseUserInput } from '@yaca/agent-core';
 
+test('parseUserInput keeps plain text input as a string', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
+
+  const content = await parseUserInput('hello model', directory);
+
+  assert.equal(content, 'hello model');
+});
+
 test('parseUserInput converts local image @path references to image_url parts', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
   const imagePath = path.join(directory, 'screen.png');
@@ -22,9 +30,9 @@ test('parseUserInput converts local image @path references to image_url parts', 
 test('parseUserInput keeps unresolved @path references as text', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
 
-  const parts = await parseUserInput('open @missing.png now', directory);
+  const content = await parseUserInput('open @missing.png now', directory);
 
-  assert.deepEqual(parts, [{ type: 'text', text: 'open @missing.png now' }]);
+  assert.equal(content, 'open @missing.png now');
 });
 
 test('parseUserInput reads local text file @path references as file-marked text', async () => {
@@ -32,18 +40,18 @@ test('parseUserInput reads local text file @path references as file-marked text'
   const filePath = path.join(directory, 'notes.md');
   await writeFile(filePath, '# Notes\n\nRead this.', 'utf8');
 
-  const parts = await parseUserInput('summarize @notes.md please', directory);
+  const content = await parseUserInput('summarize @notes.md please', directory);
 
-  assert.deepEqual(parts, [{ type: 'text', text: `summarize \n\n[File: ${filePath}]\n# Notes\n\nRead this.\n[End of File]\n\n please` }]);
+  assert.equal(content, `summarize \n\n[File: ${filePath}]\n# Notes\n\nRead this.\n[End of File]\n\n please`);
 });
 
 test('parseUserInput keeps directory @path references as text', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'yaca-input-'));
   await mkdir(path.join(directory, 'src'));
 
-  const parts = await parseUserInput('inspect @src now', directory);
+  const content = await parseUserInput('inspect @src now', directory);
 
-  assert.deepEqual(parts, [{ type: 'text', text: 'inspect @src now' }]);
+  assert.equal(content, 'inspect @src now');
 });
 
 test('parseUserInput caches image base64 payloads', async () => {
