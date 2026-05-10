@@ -32,7 +32,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
       content: 'text content',
       append: 'true to append instead of overwrite',
       encoding: 'optional encoding (default: utf8)',
-      dangerouslyOverride: 'true to overwrite existing files'
+      dangerouslyOverride: 'true to overwrite not empty files'
     },
     async execute(args) {
       const filePath = resolveToolPath(cwd, readRequiredString(args.path, 'path'));
@@ -40,7 +40,7 @@ export const filesystemTools: ToolFactory = ({ cwd }) => {
       const append = readOptionalBoolean(args.append) === true;
       const overwrite = readOptionalBoolean(args.dangerouslyOverride) === true || append;
       if (!overwrite && await exists(filePath) && !!readFileSync(filePath).toString()) {
-        return { ok: false, content: `Refusing to overwrite existing file: ${formatToolPath(cwd, filePath)}` };
+        return { ok: false, content: `Refusing to overwrite not empty file: ${formatToolPath(cwd, filePath)}, try use \`dangerouslyOverride\` args.` };
       }
       await mkdir(path.dirname(filePath), { recursive: true });
       await writeFile(filePath, content, { encoding: readOptionalEncoding(args.encoding) ?? 'utf8', flag: append ? 'a' : 'w' });
