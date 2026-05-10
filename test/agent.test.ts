@@ -171,8 +171,10 @@ test('AgentLoop emits assistant text, executes sxml tool calls, then asks model 
     'Need file <tool_call name="read_file">{"path":"a.txt"}</tool_call>',
     'Done after tool'
   ];
+  const modelMessages: unknown[][] = [];
   const model: ModelClient = {
-    async complete() {
+    async complete(messages) {
+      modelMessages.push(messages.map((message) => ({ ...message })));
       return responses.shift() ?? '';
     }
   };
@@ -194,6 +196,7 @@ test('AgentLoop emits assistant text, executes sxml tool calls, then asks model 
   const events = await agent._run([{ role: 'user', content: 'read it' }]);
 
   assert.deepEqual(executed, ['read_file']);
+  assert.deepEqual(modelMessages[1]?.at(-1), { role: 'user', content: 'file content' });
   assert.deepEqual(events.map((event) => event.type), [
     'assistant_event',
     'assistant_event',

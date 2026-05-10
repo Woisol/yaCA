@@ -54,7 +54,7 @@ export function createYacaSxmlParser(options: YacaSxmlParserOptions = {}): YacaS
     },
     maxNestingDepth: 1,
     errorStrategy: 'lenient' as ErrorStrategy,
-    tryFallback: options.tryFallback ?? true
+    tryFallback: options.tryFallback ?? false
   });
 }
 

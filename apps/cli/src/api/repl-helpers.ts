@@ -33,6 +33,7 @@ export async function runAgentTurn(
   const storedHistory = await runtime.store.readMessages(runtime.state.sessionId);
   const initialMessages = storedChatMessagesToModelMessages(storedHistory, runtime.state.config?.tool_call.tool_call_compatible ?? false);
 
+  // 从内部文件再调用外部 agent-loop 的 runStream 方法也是神了😅
   for await (const event of runtime.createAgent().runStream(initialMessages, { signal: options.signal })) {
     if (event.type === 'assistant_delta') {
       assistantTextEvents.push(event.text);

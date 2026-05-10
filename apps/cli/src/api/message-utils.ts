@@ -21,6 +21,7 @@ export function storedChatMessageToModelMessage(m: StoredChatMessage): StoredCha
   return storedChatMessageToSxmlModelMessage(m);
 }
 
+// TODO 知错了……这个函数应该放到 agent-loop 中……
 export function storedChatMessagesToModelMessages(messages: StoredChatMessage[], toolCallCompatible = false): StoredChatMessage[] {
   return toolCallCompatible
     ? messages.map(storedChatMessageToSxmlModelMessage)
@@ -64,7 +65,7 @@ function storedChatMessageToSxmlModelMessage(m: StoredChatMessage): StoredChatMe
     // try to normalize known tool event shapes
     const value = parseToolEventContent(m.content);
     if (value?.type === 'tool_call') {
-      return { role: 'tool', content: value._rawResponse || `<tool_call name="${value.call.name}">${JSON.stringify(value.call.args)}</tool_call>` };
+      return { role: 'tool', content: `<tool_call name="${value.call.name}">${value.call.args.content ?? JSON.stringify(value.call.args)}` };//value._rawResponse ||
     }
     if (value?.type === 'tool_result') {
       // const ok = value.result?.ok;

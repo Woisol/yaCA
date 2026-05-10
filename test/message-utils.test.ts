@@ -7,7 +7,7 @@ test('stored tool parse error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'parse_tool_call', args: { content: '{}' } }, _rawResponse: '<tool_call name="parse_tool_call">{"content":"{}"}</tool_call>' } };
   const formatted = storedChatMessageToModelMessage(stored as any);
   assert.equal(formatted.role, 'tool');
-  assert.equal(formatted.content, '<tool_call name="parse_tool_call">{"content":"{}"}</tool_call>');
+  assert.equal(formatted.content, '<tool_call name="parse_tool_call">{}');
 });
 
 test('stored tool_result ok formats as tool result', () => {
@@ -51,7 +51,7 @@ test('storedChatMessagesToModelMessages keeps sxml history when compatible mode 
   ] as any, true);
 
   assert.deepEqual(formatted, [
-    { role: 'tool', content: '<tool_call name="read_file">{"path":"a.txt"}</tool_call>' },
+    { role: 'tool', content: '<tool_call name="read_file">{"path":"a.txt"}' },
     { role: 'user', content: 'file content' }
   ]);
 });
