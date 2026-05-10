@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "dev",
+			"path": "apps/yaca-web",
+			"label": "npm: dev - apps/yaca-web",
+			"detail": "vp dev",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "custom",
+				"pattern": "$tsc",
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "npm.*dev|npm.*start|npm.*test|npm.*build|npm-run-all|[^\\[@]\bvite\b|ng serve|ng build|ng test",
+					"endsPattern": "https?://localhost:.*"
+				}
+			},
+			"presentation": {
+				"showReuseMessage": false,
+			}
+		}
+	]
+}
