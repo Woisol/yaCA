@@ -10,6 +10,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@woisol-g/sxml.js": "^0.3.0"
+    "@woisol-g/sxml.js": "^0.3.1"
   }
 }

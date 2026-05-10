@@ -108,8 +108,8 @@ importers:
   packages/agent-core:
     dependencies:
       '@woisol-g/sxml.js':
-        specifier: ^0.3.0
-        version: 0.3.0
+        specifier: ^0.3.1
+        version: 0.3.1
 
   packages/agent-tools: {}
 
@@ -1250,8 +1250,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@woisol-g/sxml.js@0.3.0':
-    resolution: {integrity: sha512-9IXVGn+3nku3Ol8D2G42L005zs1pasf8r7HK0igXG4Bp6UZMitcxttTVBwVZn7TVB1z0aZHkcMNvy96gej6ZCw==}
+  '@woisol-g/sxml.js@0.3.1':
+    resolution: {integrity: sha512-NHTNlW/dq3LCAhaDMEDNKE24D+EVtOoDeuMK2Cu80JlcLtsMetpehiu7In2o3m9bnS4O9uRdA/hngt7YdrKvuQ==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -3096,7 +3096,7 @@ snapshots:
   '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.20':
     optional: true
 
-  '@woisol-g/sxml.js@0.3.0': {}
+  '@woisol-g/sxml.js@0.3.1': {}
 
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
