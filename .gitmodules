@@ -1,0 +1,3 @@
+[submodule "apps/yaca-web"]
+	path = apps/yaca-web
+	url = git@github.com:Woisol/yaCA-Web.git
