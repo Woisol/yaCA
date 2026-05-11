@@ -8,9 +8,9 @@
       "name": "yaca-web",
       "request": "launch",
       "type": "msedge",
-      "url": "http://localhost:5173",
+      "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/apps/yaca-web",
-      "preLaunchTask": "npm: dev - apps/yaca-web"
+      "preLaunchTask": "yaca: dev web"
     },
     {
       "name": "Edge only",

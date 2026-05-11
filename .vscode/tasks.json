@@ -18,7 +18,26 @@
 				}
 			},
 			"presentation": {
-				"showReuseMessage": false,
+				"showReuseMessage": false
+			}
+		},
+		{
+			"type": "npm",
+			"script": "dev:web",
+			"label": "yaca: dev web",
+			"detail": "yaca --serve",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "custom",
+				"pattern": "$tsc",
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "npm.*dev|npm.*start|npm.*test|npm.*build|npm-run-all|[^\\[@]\bvite\b|ng serve|ng build|ng test",
+					"endsPattern": "https?://127.0.0.1:.*"
+				}
+			},
+			"presentation": {
+				"showReuseMessage": false
 			}
 		}
 	]
