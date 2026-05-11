@@ -6,6 +6,7 @@ import { createDefaultToolRegistry } from '@yaca/agent-tools';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
 import { IS_DEV } from '../packages/shared/constants/dev.js';
 import { Logger } from '@yaca/utils/logger.js';
+import { write } from 'node:fs';
 
 type CliArgs = {
   serve?: number;
@@ -16,7 +17,7 @@ type CliArgs = {
 };
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
-  const logger = new Logger("main");
+  // const logger = new Logger("main");
 
   if (IS_DEV) loadEnvFile();
 
@@ -69,10 +70,10 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     try {
       const { startYacaWebServer } = await import('@woisol-g/yaca-web/server.js');
       startYacaWebServer({ port: args.serve, cwd, state, store, tools, toolPermissions, createAgent });
-      logger.info(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
+      output.write(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
     } catch (error: any) {
       if (error.code === 'ERR_MODULE_NOT_FOUND') {
-        logger.error('Error: Web UI module (@woisol-g/yaca-web) is not installed or built.\nTry executing `pnpm install @woisol-g/yaca-web` first.');
+        output.write('Error: Web UI module (@woisol-g/yaca-web) is not installed or built.\nTry executing `pnpm install @woisol-g/yaca-web` first.');
       } else {
         throw error;
       }

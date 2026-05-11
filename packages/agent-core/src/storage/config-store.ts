@@ -1,5 +1,4 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { YACA_HOME } from '../constants/path.js';
 

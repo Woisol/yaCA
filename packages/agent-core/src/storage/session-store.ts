@@ -1,6 +1,5 @@
 import { mkdir, open, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import type { ChatMessage } from '@yaca/types';
 import { YACA_HOME } from '../constants/path.js';
