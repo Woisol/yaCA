@@ -6,7 +6,6 @@ import { createDefaultToolRegistry } from '@yaca/agent-tools';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
 import { IS_DEV } from '../packages/shared/constants/dev.js';
 import { Logger } from '@yaca/utils/logger.js';
-import { write } from 'node:fs';
 
 type CliArgs = {
   serve?: number;
@@ -69,7 +68,25 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (args.serve !== undefined) {
     try {
       const { startYacaWebServer } = await import('@woisol-g/yaca-web/server.js');
-      startYacaWebServer({ port: args.serve, cwd, state, store, tools, toolPermissions, createAgent });
+      const { buildYacaWebSystemPrompt } = await import('@woisol-g/yaca-web/server/prompt.js');
+      const createWebAgent = () => {
+        const runtimeConfig = state.config;
+        return new AgentLoop({
+          model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }),
+          maxTurns: runtimeConfig.max_turns,
+          maxToolRetry: runtimeConfig.max_tool_retry,
+          tools,
+          postponeToolCalls: runtimeConfig.tool_call.postpone_tool_calls,
+          toolCallCompatible: runtimeConfig.tool_call.tool_call_compatible,
+          toolCallTryFallback: runtimeConfig.tool_call.try_fallback,
+          onBeforeToolCall: toolPermissions.confirm,
+          systemPrompt: buildYacaWebSystemPrompt({
+            toolCallCompatible: runtimeConfig.tool_call.tool_call_compatible,
+            toolHint: tools.hint()
+          })
+        });
+      };
+      startYacaWebServer({ port: args.serve, cwd, state, store, tools, toolPermissions, createAgent: createWebAgent });
       output.write(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
     } catch (error: any) {
       if (error.code === 'ERR_MODULE_NOT_FOUND') {

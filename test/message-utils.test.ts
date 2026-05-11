@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { storedChatMessageToModelMessage, storedChatMessagesToModelMessages } from '@yaca/agent-core';
+import { applyRewindSelection, renderSessionMessages } from '@yaca/ui';
 import { formatStoredMessageContent, reduceMessageFile, reduceMessageFileToPathMention } from '../apps/cli/src/api/message-utils.js';
+import { toThreadMessages } from '../apps/yaca-web/src/lib/assistant.js';
 
 test('stored tool parse error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_call', call: { call_id: 'call-1', name: 'parse_tool_call', args: { content: '{}' } }, _rawResponse: '<tool_call name="parse_tool_call">{"content":"{}"}</tool_call>' } };
@@ -21,6 +23,48 @@ test('stored tool_result error formats as tool error with message', () => {
   const stored = { role: 'tool', content: { type: 'tool_result', call_id: 'call-1', result: { ok: false, content: 'Failed to parse' } } };
   const formatted = storedChatMessageToModelMessage(stored as any);
   assert.equal(String(formatted.content), 'Failed to parse');
+});
+
+test('renderSessionMessages preserves orphan stored tool results as visible tool cards', () => {
+  const messages = renderSessionMessages([
+    { role: 'tool', content: { type: 'tool_result', call_id: 'missing-call', result: { ok: false, content: 'tool failed without call' } } }
+  ] as any);
+
+  assert.deepEqual(messages, [{
+    kind: 'tool',
+    callId: 'missing-call',
+    toolName: 'tool_result',
+    status: 'error',
+    result: 'tool failed without call',
+    expanded: true,
+    orphan: true
+  }]);
+});
+
+test('applyRewindSelection keeps CLI rewind semantics for web user-message rewind', () => {
+  const current = [
+    { kind: 'user' as const, text: 'first' },
+    { kind: 'assistant' as const, text: 'first answer' },
+    { kind: 'user' as const, text: `retry [File:src${path.sep}index.ts]` },
+    { kind: 'assistant' as const, text: 'retry answer' }
+  ];
+
+  const result = applyRewindSelection(current, 2);
+
+  assert.deepEqual(result.messages, current.slice(0, 2));
+  assert.equal(result.input, `retry @src${path.sep}index.ts`);
+});
+
+test('toThreadMessages reduces long file blocks for web display without changing rewind semantics', () => {
+  const filePath = path.join(process.cwd(), 'src', 'display.ts');
+  const rawText = `review this\n\n[File: ${filePath}]\nconst value = 1;\n[End of File]\n\nplease`;
+
+  const threadMessages = toThreadMessages([{ kind: 'user', text: rawText }]);
+  const textPart = threadMessages[0]?.content[0];
+
+  assert.equal(textPart?.type, 'text');
+  assert.equal(textPart?.type === 'text' ? textPart.text : '', `review this[File:src${path.sep}display.ts]please`);
+  assert.equal(reduceMessageFileToPathMention(rawText), `review this@src${path.sep}display.tsplease`);
 });
 
 test('storedChatMessagesToModelMessages converts persisted tool events to OpenAI tool history by default', () => {

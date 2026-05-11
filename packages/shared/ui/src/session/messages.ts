@@ -31,7 +31,19 @@ export function appendStoredToolMessage(lines: ChatMessage[], content: StoredCha
     });
   }
   if (event.type === 'tool_result') {
-    return applyToolResult(lines, { ...event, rawResponse: '' }, false);
+    const next = applyToolResult(lines, { ...event, rawResponse: '' }, false);
+    if (next !== lines && next.some((message, index) => message !== lines[index])) {
+      return next;
+    }
+    return [...lines, {
+      kind: 'tool' as const,
+      callId: event.call_id ?? '',
+      toolName: 'tool_result',
+      status: event.result.ok ? 'success' : 'error' as const,
+      result: event.result.content,
+      expanded: true,
+      orphan: true
+    }];
   }
   return [...lines, { kind: 'error' as const, text: event.message }];
 }

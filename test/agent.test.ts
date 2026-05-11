@@ -84,6 +84,35 @@ test('AgentLoop uses plain system prompt without XML tool instructions in defaul
   assert.doesNotMatch(systemPrompt, /<tool_call/);
 });
 
+test('AgentLoop can override the default system prompt', async () => {
+  let systemPrompt = '';
+  const model: ModelClient = {
+    async complete() {
+      throw new Error('complete should not be used in default OpenAI tool mode');
+    },
+    async completeWithTools(messages) {
+      systemPrompt = String(messages[0]?.content ?? '');
+      return { content: 'ok', toolCalls: [] };
+    }
+  };
+  const tools = {
+    definitions() {
+      return [];
+    },
+    async execute(): Promise<ToolResult> {
+      return { ok: true, content: '' };
+    },
+    hint() {
+      return 'hint';
+    }
+  };
+  const agent = new AgentLoop({ model, tools, maxTurns: 1, postponeToolCalls: 1, systemPrompt: 'web system prompt' });
+
+  await agent._run([{ role: 'user', content: 'hi' }]);
+
+  assert.equal(systemPrompt, 'web system prompt');
+});
+
 test('AgentLoop streams OpenAI-compatible assistant text before executing tool calls', async () => {
   const model: ModelClient = {
     async complete() {

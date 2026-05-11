@@ -8,4 +8,5 @@ export type ChatMessage = {
   result?: string;
   expanded?: boolean;
   rawResponse?: string;
+  orphan?: boolean;
 };

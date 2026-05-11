@@ -24,8 +24,9 @@ export class AgentLoop {
   private readonly streamAssistantTurn: AssistantTurnStrategy;
   private readonly toolCallCompatible: boolean;
   private readonly onBeforeToolCall?: ToolCallApproval;
+  private readonly systemPrompt?: string;
 
-  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean; toolCallTryFallback?: boolean; onBeforeToolCall?: ToolCallApproval }) {
+  constructor(options: { model: ModelClient; tools: ToolExecutor; maxTurns?: number; maxToolRetry?: number; postponeToolCalls: number; toolCallCompatible?: boolean; toolCallTryFallback?: boolean; onBeforeToolCall?: ToolCallApproval; systemPrompt?: string }) {
     this.model = options.model;
     this.tools = options.tools;
     this.postponeToolCalls = options.postponeToolCalls;
@@ -33,6 +34,7 @@ export class AgentLoop {
     this.maxToolRetry = options.maxToolRetry ?? 5;
     this.toolCallCompatible = options.toolCallCompatible ?? false;
     this.onBeforeToolCall = options.onBeforeToolCall;
+    this.systemPrompt = options.systemPrompt;
     this.streamAssistantTurn = options.toolCallCompatible
       ? createSxmlAssistantTurn(this.model, { tryFallback: options.toolCallTryFallback })
       : createOpenAICompatibleAssistantTurn(this.model);
@@ -59,7 +61,7 @@ export class AgentLoop {
 
   async *runStream(initialMessages: ChatMessage[], options: AgentRunOptions = {}): AsyncIterable<AgentEvent> {
     const messages: ChatMessage[] = [
-      { role: 'system', content: this.toolCallCompatible ? buildSystemPrompt(this.tools.hint()) : buildOpenAIToolSystemPrompt() },
+      { role: 'system', content: this.systemPrompt ?? (this.toolCallCompatible ? buildSystemPrompt(this.tools.hint()) : buildOpenAIToolSystemPrompt()) },
       ...initialMessages
     ];
     let consecutiveToolFailures = 0;

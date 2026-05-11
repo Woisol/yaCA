@@ -16,6 +16,7 @@
     "test": "pnpm run typecheck && node --import tsx --test test/*.test.ts",
     "dev:cli": "tsx apps/index.ts",
     "dev:web": "tsx apps/index.ts --serve",
+    "build:watch": "cd apps/yaca-web; vp build --watch",
     "start:cli": "node dist/index.js",
     "start:web": "node dist/index.js",
     "prepare": "husky"

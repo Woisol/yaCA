@@ -29,6 +29,9 @@
       "@woisol-g/yaca-web/server.js": [
         "./apps/yaca-web/src/server.ts"
       ],
+      "@woisol-g/yaca-web/server/prompt.js": [
+        "./apps/yaca-web/src/server/prompt.ts"
+      ],
       "@woisol-g/yaca-web/*": [
         "./apps/yaca-web/src/*"
       ],

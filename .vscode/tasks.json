@@ -39,6 +39,13 @@
 			"presentation": {
 				"showReuseMessage": false
 			}
+		},
+		{
+			"type": "npm",
+			"script": "build:watch",
+			"path": "apps/yaca-web",
+			"label": "yaca: build:watch",
+			"detail": "tsc -b && vp build && tsc -p tsconfig.server.json"
 		}
 	]
 }

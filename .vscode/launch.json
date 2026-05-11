@@ -5,6 +5,14 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "yaca-web dev",
+      "request": "launch",
+      "type": "msedge",
+      "url": "http://localhost:5373",
+      "webRoot": "${workspaceFolder}/apps/yaca-web",
+      "preLaunchTask": "npm: dev - apps/yaca-web"
+    },
+    {
       "name": "yaca-web",
       "request": "launch",
       "type": "msedge",
