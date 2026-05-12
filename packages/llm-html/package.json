@@ -1,17 +1,29 @@
 {
   "name": "@woisol-g/llm-html",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./highlight": "./src/highlight.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./highlight": {
+      "types": "./dist/highlight.d.ts",
+      "import": "./dist/highlight.js"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {},
   "dependencies": {
     "refractor": "^5.0.0"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "pnpm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Woisol-G",

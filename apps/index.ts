@@ -89,8 +89,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       startYacaWebServer({ port: args.serve, cwd, state, store, tools, toolPermissions, createAgent: createWebAgent });
       output.write(`YACA server listening on http://127.0.0.1:${args.serve}\n`);
     } catch (error: any) {
-      if (error.code === 'ERR_MODULE_NOT_FOUND') {
-        output.write('Error: Web UI module (@woisol-g/yaca-web) is not installed or built.\nTry executing `pnpm install @woisol-g/yaca-web` first.');
+      if (isMissingWebUiModule(error)) {
+        output.write('Error: Web UI module (@woisol-g/yaca-web) is not installed or built.\nTry executing `pnpm install -g @woisol-g/yaca-web` first.');
       } else {
         throw error;
       }
@@ -106,6 +106,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   startInkRepl({ cwd, state, store, tools, toolPermissions, createAgent });
+}
+
+function isMissingWebUiModule(error: unknown): boolean {
+  return error instanceof Error
+    && 'code' in error
+    && error.code === 'ERR_MODULE_NOT_FOUND'
+    && /@woisol-g\/yaca-web(?:\/server(?:\/prompt)?\.js)?/.test(error.message);
 }
 
 async function runOne(inputText: string, state: CliState, store: SessionStore, agent: AgentLoop, cwd: string): Promise<void> {

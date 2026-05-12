@@ -1,6 +1,6 @@
 {
   "name": "@woisol-g/yaca",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Yet another Coding Agent.",
   "type": "module",
   "bin": {
@@ -15,7 +15,7 @@
   ],
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsup",
+    "build": "pnpm --filter @woisol-g/llm-html run build && tsup",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run typecheck && node --import tsx --test test/*.test.ts",
     "dev:cli": "tsx apps/index.ts",

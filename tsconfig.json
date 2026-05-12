@@ -38,6 +38,9 @@
       "@woisol-g/llm-html": [
         "./packages/llm-html/src/index.ts"
       ],
+      "@woisol-g/llm-html/highlight": [
+        "./packages/llm-html/src/highlight.ts"
+      ],
       "@woisol-g/yaca/web-runtime.js": [
         "./apps/web-runtime.ts"
       ],
