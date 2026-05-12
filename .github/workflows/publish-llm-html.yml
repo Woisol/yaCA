@@ -1,4 +1,4 @@
-name: Publish yaca-web package
+name: Publish llm-html package
 
 on:
   workflow_dispatch:
@@ -47,12 +47,12 @@ jobs:
       - name: Build yaCA Web package
         run: pnpm --filter @woisol-g/yaca-web run build
 
-      - name: Pack yaCA Web package
-        run: pnpm --filter @woisol-g/yaca-web pack --pack-destination "$PWD"
+      - name: Pack llm-html package
+        run: pnpm --filter @woisol-g/llm-html pack --pack-destination "$PWD"
 
-      - name: Publish yaCA Web package
+      - name: Publish llm-html package
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
-        working-directory: apps/yaca-web
+        working-directory: packages/llm-html
         run: |
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
           pnpm publish --access public --no-git-checks
@@ -62,8 +62,8 @@ jobs:
       - name: Write release summary
         shell: bash
         run: |
-          PACKAGE_NAME="$(node -p "require('./apps/yaca-web/package.json').name")"
-          PACKAGE_VERSION="$(node -p "require('./apps/yaca-web/package.json').version")"
+          PACKAGE_NAME="$(node -p "require('./packages/llm-html/package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./packages/llm-html/package.json').version")"
 
           {
             echo "## Published package"
