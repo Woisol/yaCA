@@ -191,6 +191,7 @@ th {
   color: var(--llm-muted);
   cursor: pointer;
   font: inherit;
+  transition: background 0.2s, color 0.2s;
 }
 
 .tab-button[aria-selected="true"] {

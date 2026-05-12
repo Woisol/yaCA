@@ -1,4 +1,5 @@
-import { mkdir, open, readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { ChatMessage } from '@yaca/types';
@@ -77,6 +78,34 @@ export class SessionStore {
     };
     await this.updateSession(updated);
     return updated;
+  }
+
+  async deleteSession(id: string): Promise<SessionMeta> {
+    const session = await this.requireSession(id);
+    const meta = await this.readProjectMeta();
+    meta.sessions = meta.sessions.filter((item) => item.id !== id);
+    await this.writeProjectMeta(meta);
+    return session;
+  }
+
+  async cleanDeletedSessions(): Promise<{ removed: string[] }> {
+    const meta = await this.readProjectMeta();
+    const activeIds = new Set(meta.sessions.map((session) => session.id));
+    const removed: string[] = [];
+    let entries: Dirent<string>[];
+    try {
+      entries = await readdir(this.projectDirectory(), { withFileTypes: true });
+    } catch {
+      return { removed };
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || activeIds.has(entry.name)) continue;
+      await rm(this.sessionDirectory(entry.name), { recursive: true, force: true });
+      removed.push(entry.name);
+    }
+    removed.sort();
+    return { removed };
   }
 
   async appendMessage(id: string, message: ChatMessage): Promise<void> {

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { ConfigStore, SessionStore, handleBuiltinCommand, builtinCommands, type CliState } from '@yaca/agent-core';
 
 test('builtinCommands keeps command docs with handlers', () => {
-  assert.deepEqual(builtinCommands.map((command) => command.name), ['/help', '/model', '/baseurl', '/apikey', '/clear', '/resume', '/continue', '/tool', '/exit']);
+  assert.deepEqual(builtinCommands.map((command) => command.name), ['/help', '/model', '/baseurl', '/apikey', '/clear', '/resume', '/continue', '/rename', '/delete', '/clean', '/tool', '/exit']);
   assert.equal(builtinCommands.every((command) => command.usage && command.description), true);
 });
 
@@ -67,4 +67,47 @@ test('handleBuiltinCommand continues the most recent session', async () => {
   assert.equal(result, `Continued session ${latest.id}`);
   assert.equal(state.sessionId, latest.id);
   assert.notEqual(state.sessionId, older.id);
+});
+
+test('handleBuiltinCommand renames the current session', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-commands-'));
+  const configStore = new ConfigStore(home);
+  const config = await configStore.load();
+  const store = new SessionStore({ homeDirectory: home, workspace: home });
+  const session = await store.createSession('New session');
+  const state: CliState = { model: config.model, config, configStore, sessionId: session.id };
+
+  const result = await handleBuiltinCommand('/rename Better name', state, store);
+
+  assert.equal(result, `Renamed session ${session.id} to Better name`);
+  assert.equal((await store.resumeSession(session.id)).name, 'Better name');
+});
+
+test('handleBuiltinCommand soft deletes the current session', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-commands-'));
+  const configStore = new ConfigStore(home);
+  const config = await configStore.load();
+  const store = new SessionStore({ homeDirectory: home, workspace: home });
+  const session = await store.createSession('Delete me');
+  const state: CliState = { model: config.model, config, configStore, sessionId: session.id };
+
+  const result = await handleBuiltinCommand('/delete', state, store);
+
+  assert.equal(result, `Deleted session ${session.id}`);
+  assert.equal(state.sessionId, undefined);
+  assert.deepEqual(await store.listSessions(), []);
+});
+
+test('handleBuiltinCommand cleans soft deleted session directories', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-commands-'));
+  const configStore = new ConfigStore(home);
+  const config = await configStore.load();
+  const store = new SessionStore({ homeDirectory: home, workspace: home });
+  const session = await store.createSession('Delete me');
+  await store.deleteSession(session.id);
+  const state: CliState = { model: config.model, config, configStore };
+
+  const result = await handleBuiltinCommand('/clean', state, store);
+
+  assert.equal(result, 'Cleaned 1 deleted session.');
 });

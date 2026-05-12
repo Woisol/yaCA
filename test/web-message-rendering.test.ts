@@ -114,6 +114,20 @@ test('ThreadView keeps assistant-ui message component identity stable across str
   assert.doesNotMatch(executableSource, /components=\{\{\s*Message:/);
 });
 
+test('SessionSidebar keeps session item actions outside the session item button', () => {
+  const source = readFileSync('apps/yaca-web/src/components/sidebar/SessionSidebar.tsx', 'utf8');
+  const itemIndex = source.indexOf('className="session-item"');
+  const itemCloseIndex = source.indexOf('</button>', itemIndex);
+  const actionIndex = source.indexOf('className="session-action-group"');
+
+  assert.match(source, /className=\{`session-row/);
+  assert.match(source, /className="session-item"/);
+  assert.match(source, /className="session-action-group"/);
+  assert.equal(itemIndex > -1, true);
+  assert.equal(itemCloseIndex > itemIndex, true);
+  assert.equal(actionIndex > itemCloseIndex, true);
+});
+
 test('llm-html keeps full prism registry out of the lightweight entry', () => {
   const lightweightEntry = readFileSync('packages/llm-html/src/index.ts', 'utf8');
   const highlightEntry = readFileSync('packages/llm-html/src/highlight.ts', 'utf8');

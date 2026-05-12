@@ -1,4 +1,5 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -71,3 +72,41 @@ test('SessionStore renames a session without changing message counters', async (
   assert.equal(loaded.message_count, 1);
   assert.equal(listed[0]?.id, session.id);
 });
+
+test('SessionStore soft deletes sessions from project metadata only', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-store-'));
+  const workspace = path.join(home, 'workspace');
+  const store = new SessionStore({ homeDirectory: home, workspace });
+  const session = await store.createSession('Delete me');
+  await store.appendMessage(session.id, { role: 'user', content: 'hello' });
+  const sessionDirectory = getSessionDirectory(home, workspace, session.id);
+
+  const deleted = await store.deleteSession(session.id);
+
+  assert.equal(deleted.id, session.id);
+  assert.deepEqual(await store.listSessions(), []);
+  await assert.rejects(() => store.resumeSession(session.id), /Session not found/);
+  assert.equal((await stat(sessionDirectory)).isDirectory(), true);
+});
+
+test('SessionStore permanently cleans directories missing from project metadata', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-store-'));
+  const workspace = path.join(home, 'workspace');
+  const store = new SessionStore({ homeDirectory: home, workspace });
+  const keep = await store.createSession('Keep');
+  const remove = await store.createSession('Remove');
+  const keepDirectory = getSessionDirectory(home, workspace, keep.id);
+  const removeDirectory = getSessionDirectory(home, workspace, remove.id);
+  await store.deleteSession(remove.id);
+
+  const result = await store.cleanDeletedSessions();
+
+  assert.deepEqual(result.removed, [remove.id]);
+  assert.equal((await stat(keepDirectory)).isDirectory(), true);
+  await assert.rejects(() => stat(removeDirectory));
+});
+
+function getSessionDirectory(home: string, workspace: string, sessionId: string): string {
+  const projectHash = createHash('sha256').update(path.resolve(workspace)).digest('hex').slice(0, 16);
+  return path.join(path.resolve(home), 'sessions', projectHash, sessionId);
+}

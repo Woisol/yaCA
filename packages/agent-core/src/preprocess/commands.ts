@@ -103,6 +103,37 @@ export const builtinCommands: BuiltinCommand[] = [
     }
   },
   {
+    name: '/rename',
+    usage: '/rename <name>',
+    description: 'Rename the current session',
+    async handle(value, state, store) {
+      if (!state.sessionId) return 'No active session.';
+      if (!value.trim()) return 'Usage: /rename <name>';
+      const session = await store.renameSession(state.sessionId, value);
+      return `Renamed session ${session.id} to ${session.name}`;
+    }
+  },
+  {
+    name: '/delete',
+    usage: '/delete',
+    description: 'Soft delete the current session',
+    async handle(_value, state, store) {
+      if (!state.sessionId) return 'No active session.';
+      const deleted = await store.deleteSession(state.sessionId);
+      state.sessionId = undefined;
+      return `Deleted session ${deleted.id}`;
+    }
+  },
+  {
+    name: '/clean',
+    usage: '/clean',
+    description: 'Permanently remove soft-deleted sessions',
+    async handle(_value, _state, store) {
+      const result = await store.cleanDeletedSessions();
+      return `Cleaned ${result.removed.length} deleted ${result.removed.length === 1 ? 'session' : 'sessions'}.`;
+    }
+  },
+  {
     name: '/tool',
     usage: '/tool',
     description: 'Open tool allow-list selector',
