@@ -5,7 +5,7 @@ on:
   release:
     types: [published]
   push:
-    tags: ['web-v*']
+    tags: ['v*']
 
 jobs:
   publish:
