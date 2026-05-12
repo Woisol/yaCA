@@ -196,8 +196,12 @@ th {
   grid-template-columns: var(--llm-col-template, repeat(auto-fit, minmax(220px, 1fr)));
   gap: 14px;
   align-items: start;
+  min-width: 0;
 }
-
+.col-con > * {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
 .steps {
   display: flex;
   flex-wrap: wrap;

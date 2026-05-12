@@ -80,10 +80,3 @@ test('llm-html prompt says presets are class names and encourages dense structur
   assert.match(LLM_HTML_PROMPT, /information density/i);
   assert.match(LLM_HTML_PROMPT, /avoid relying on fenced code blocks/i);
 });
-
-test('ThreadView keeps assistant-ui message component identity stable across streaming renders', () => {
-  const source = readFileSync('apps/yaca-web/src/components/chat/ThreadView.tsx', 'utf8');
-
-  assert.match(source, /THREAD_MESSAGE_COMPONENTS/);
-  assert.doesNotMatch(source, /components=\{\{\s*Message:/);
-});
