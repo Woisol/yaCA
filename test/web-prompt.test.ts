@@ -8,7 +8,8 @@ test('buildYacaWebSystemPrompt describes web markdown and html rendering in defa
   assert.match(prompt, /yaCA Web interface/);
   assert.match(prompt, /HTML-first/i);
   assert.match(prompt, /renders Markdown/);
-  assert.match(prompt, /<!doctype html>/i);
+  assert.match(prompt, /<body>.*<\/body>/i);
+  assert.doesNotMatch(prompt, /<!doctype html>/i);
   assert.match(prompt, /note-info/);
   assert.match(prompt, /tabs/);
   assert.match(prompt, /CSS class names/i);

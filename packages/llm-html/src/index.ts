@@ -207,8 +207,8 @@ th {
 
 .step {
   position: relative;
-  flex: 1 1 220px;
-  min-width: min(100%, 220px);
+  flex: 1 1 300px;
+  min-width: min(100%, 300px);
   padding: 14px 16px;
   border: 1px solid var(--llm-line);
   border-radius: 10px;
@@ -226,7 +226,12 @@ th {
   transform: translateY(-50%);
 }
 
+.step:nth-child(2) {
+  display: inline-block;
+}
+
 .step-check {
+  display: inline-block;
   margin: 0 8px 0 0;
   vertical-align: -2px;
 }
@@ -346,6 +351,11 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .step {
+    width: 100%;
+    min-width: 100%;
+  }
+
   .step:not(:last-child)::after {
     top: auto;
     right: 50%;
@@ -419,6 +429,8 @@ export const LLM_HTML_INTERACTION_SCRIPT = String.raw`
     initLlmHtmlSteps();
   }
 
+  window.__yacaInitLlmHtmlRuntime = initLlmHtmlRuntime;
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initLlmHtmlRuntime, { once: true });
   } else {
@@ -429,8 +441,9 @@ export const LLM_HTML_INTERACTION_SCRIPT = String.raw`
 
 export const LLM_HTML_PROMPT = [
   'HTML-first output for yaCA Web:',
-  'When an answer benefits from visual structure, output a complete standalone HTML document beginning with <!doctype html>. The web UI renders it in an isolated iframe and injects preset CSS and interaction JS.',
-  'Do not write scripts. Do not rely on inline style or custom CSS unless the user explicitly asks for a standalone artifact that needs it.',
+  'When an answer benefits from visual structure, output only <body>...</body> HTML content. Do not output document declarations, <html>, <head>, <style>, or <script>.',
+  'The web UI renders the body content in an isolated iframe and injects preset CSS and interaction JS.',
+  'Do not write scripts. Do not rely on inline style or custom CSS.',
   'Use normal HTML for headings, paragraphs, lists, tables, links, and strong text.',
   'Preset names are CSS class names, not custom elements: write <div class="note-info">...</div>, never <note-info>...</note-info>.',
   'Available preset components: note-info, note-success, note-warning, note-danger; details.collapse; .tabs with child .tab[data-label]; .col-con with children .col-1, .col-2, etc.; .steps with child .step; inline tags tag-blue, tag-green, tag-yellow, tag-red and tag-bg-blue, tag-bg-green, tag-bg-yellow, tag-bg-red.',
@@ -438,48 +451,145 @@ export const LLM_HTML_PROMPT = [
   'For plain explanations, code review, debugging, and tool-driven work where HTML would add no value, Markdown remains supported.'
 ].join('\n');
 
-export function createLlmHtmlDocument(input: string): string {
-  const body = normalizePresetElements(highlightCodeBlocks(stripScripts(input.trim())));
-  const headInjection = createHeadInjection();
-  const closedBody = closeStreamingDocument(body);
+export const LLM_HTML_MESSAGE_CHANNEL = 'yaca.llm-html';
 
-  if (/^\s*<!doctype html>/i.test(closedBody)) {
-    if (/<head[^>]*>/i.test(closedBody)) {
-      return closedBody.replace(/<head([^>]*)>/i, `<head$1>${headInjection}`);
-    }
-    if (/<html[^>]*>/i.test(closedBody)) {
-      return closedBody.replace(/<html([^>]*)>/i, `<html$1><head>${headInjection}</head>`);
-    }
-    return closedBody.replace(/^\s*<!doctype html>/i, `<!doctype html><html><head>${headInjection}</head><body>`).concat('</body></html>');
-  }
+export type LlmHtmlPayloadMode = 'stream' | 'final';
 
-  return `<!doctype html><html><head>${headInjection}</head><body>${closedBody}</body></html>`;
-}
-
-function createHeadInjection(): string {
-  const csp = "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; media-src data:; connect-src 'none'; base-uri 'none'; form-action 'none';";
+export function createLlmHtmlShellDocument(options: { frameId: string; token: string }): string {
+  const { frameId, token } = options;
+  const csp = `default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'nonce-${token}'; font-src data:; media-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none';`;
   return [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
     '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttribute(csp)}">`,
     `<style data-yaca-llm-html-style>${LLM_HTML_STYLES}</style>`,
-    `<script data-yaca-llm-html-runtime>${LLM_HTML_INTERACTION_SCRIPT}</script>`
+    '</head>',
+    '<body>',
+    '<div id="llm-html-root"></div>',
+    `<script nonce="${escapeHtmlAttribute(token)}" data-yaca-llm-html-runtime>${LLM_HTML_INTERACTION_SCRIPT}${createShellRuntimeScript(frameId, token)}</script>`,
+    '</body>',
+    '</html>'
   ].join('');
 }
 
-function closeStreamingDocument(html: string): string {
-  if (!/^\s*<!doctype html>/i.test(html)) return html;
-
-  const hasHtmlClose = /<\/html\s*>\s*$/i.test(html);
-  const hasBodyClose = /<\/body\s*>/i.test(html);
-
-  if (hasHtmlClose) return html;
-  if (hasBodyClose) return `${html}</html>`;
-  if (/<body[^>]*>/i.test(html)) return `${html}</body></html>`;
-  return html;
+export function createLlmHtmlPayload(input: string, options: { mode: LlmHtmlPayloadMode }): string {
+  const body = extractBodyContent(input.trim());
+  const normalized = normalizePresetElements(sanitizeAuthoredHtml(body));
+  return options.mode === 'final' ? highlightCodeBlocks(normalized) : normalized;
 }
 
-function stripScripts(html: string): string {
-  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+function createShellRuntimeScript(frameId: string, token: string): string {
+  const config = JSON.stringify({ channel: LLM_HTML_MESSAGE_CHANNEL, frameId, token });
+  return String.raw`
+(() => {
+  const config = ${config};
+  const root = document.getElementById('llm-html-root');
+  let pendingHeightFrame = 0;
+
+  function isFrameMessage(event) {
+    const data = event.data;
+    return data
+      && typeof data === 'object'
+      && data.channel === config.channel
+      && data.frameId === config.frameId
+      && data.token === config.token;
+  }
+
+  function reportHeight() {
+    const body = document.body;
+    const doc = document.documentElement;
+    const rootRect = root ? root.getBoundingClientRect() : { height: 0 };
+    const height = Math.ceil(Math.max(
+      root ? root.scrollHeight : 0,
+      rootRect.height,
+      body ? body.scrollHeight : 0,
+      body ? body.offsetHeight : 0,
+      doc ? doc.scrollHeight : 0,
+      doc ? doc.offsetHeight : 0
+    ));
+    window.parent.postMessage({
+      channel: config.channel,
+      type: 'height',
+      frameId: config.frameId,
+      token: config.token,
+      height
+    }, '*');
+  }
+
+  function scheduleHeightReport() {
+    if (pendingHeightFrame) cancelAnimationFrame(pendingHeightFrame);
+    pendingHeightFrame = requestAnimationFrame(() => {
+      pendingHeightFrame = 0;
+      reportHeight();
+    });
+  }
+
+  window.addEventListener('message', (event) => {
+    if (!isFrameMessage(event)) return;
+    const data = event.data;
+    if (data.type !== 'update' || !root) return;
+    root.innerHTML = typeof data.html === 'string' ? data.html : '';
+    if (typeof window.__yacaInitLlmHtmlRuntime === 'function') {
+      window.__yacaInitLlmHtmlRuntime();
+    }
+    scheduleHeightReport();
+  });
+
+  if ('ResizeObserver' in window) {
+    const observer = new ResizeObserver(scheduleHeightReport);
+    if (root) observer.observe(root);
+    observer.observe(document.body);
+    observer.observe(document.documentElement);
+  }
+
+  window.addEventListener('load', scheduleHeightReport);
+  document.addEventListener('toggle', scheduleHeightReport, true);
+  scheduleHeightReport();
+})();
+`;
+}
+
+function extractBodyContent(input: string): string {
+  const bodyOpen = /<body\b[^>]*>/i.exec(input);
+  if (!bodyOpen) return '';
+  const afterBodyOpen = input.slice(bodyOpen.index + bodyOpen[0].length);
+  const bodyClose = /<\/body\s*>/i.exec(afterBodyOpen);
+  return bodyClose ? afterBodyOpen.slice(0, bodyClose.index) : afterBodyOpen;
+}
+
+function sanitizeAuthoredHtml(html: string): string {
+  return sanitizeUrlAttributes(html
+    .replace(/<\s*(script|style|iframe|object|embed)\b[^>]*>[\s\S]*?(?:<\s*\/\s*\1\s*>|$)/gi, '')
+    .replace(/<\s*(link|meta|base)\b[^>]*(?:>|$)/gi, '')
+    .replace(/\s+on[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+)/gi, '')
+    .replace(/\s+style\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+)/gi, '')
+    .replace(/\s+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+)/gi, ''));
+}
+
+function sanitizeUrlAttributes(html: string): string {
+  return html
+    .replace(/\s+(href|src|xlink:href)\s*=\s*(["'])(.*?)\2/gi, (_match: string, attrName: string, quote: string, value: string) => {
+      return ` ${attrName}=${quote}${escapeHtmlAttribute(toSafeUrlAttribute(attrName, value))}${quote}`;
+    })
+    .replace(/\s+(href|src|xlink:href)\s*=\s*([^\s"'=<>`]+)/gi, (_match: string, attrName: string, value: string) => {
+      return ` ${attrName}="${escapeHtmlAttribute(toSafeUrlAttribute(attrName, value))}"`;
+    });
+}
+
+function toSafeUrlAttribute(attrName: string, value: string): string {
+  const trimmed = value.trim();
+  if (isSafeUrl(trimmed, attrName)) return trimmed;
+  return attrName.toLowerCase() === 'href' || attrName.toLowerCase() === 'xlink:href' ? '#' : '';
+}
+
+function isSafeUrl(value: string, attrName: string): boolean {
+  if (/^(https?:|mailto:|tel:|\/|#)/i.test(value)) return true;
+  if (/^blob:/i.test(value)) return true;
+  if (/^data:image\//i.test(value) && attrName.toLowerCase() === 'src') return true;
+  return false;
 }
 
 function normalizePresetElements(html: string): string {

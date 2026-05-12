@@ -1,71 +1,68 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LLM_HTML_INTERACTION_SCRIPT, LLM_HTML_PROMPT, LLM_HTML_STYLES } from '../packages/llm-html/src/index.js';
-import { createSandboxedHtmlDocument, getMessageRenderMode } from '../apps/yaca-web/src/lib/message-rendering.js';
+import { readFileSync } from 'node:fs';
+import { createLlmHtmlPayload, createLlmHtmlShellDocument, LLM_HTML_INTERACTION_SCRIPT, LLM_HTML_PROMPT, LLM_HTML_STYLES } from '../packages/llm-html/src/index.js';
+import { getMessageRenderMode } from '../apps/yaca-web/src/lib/message-rendering.js';
 
-test('getMessageRenderMode uses html only for doctype html documents', () => {
-  assert.equal(getMessageRenderMode('\n<!doctype html><html></html>'), 'html');
+test('getMessageRenderMode uses html only for body wrapped output', () => {
+  assert.equal(getMessageRenderMode('\n<body><h1>Preview</h1>'), 'html');
+  assert.equal(getMessageRenderMode('\n<!doctype html><html></html>'), 'markdown');
   assert.equal(getMessageRenderMode('<section>plain snippet</section>'), 'markdown');
   assert.equal(getMessageRenderMode('# title'), 'markdown');
 });
 
-test('createSandboxedHtmlDocument injects a restrictive CSP before user html', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><head><title>x</title></head><body><script>bad()</script></body></html>');
+test('createLlmHtmlShellDocument creates a stable iframe shell with restrictive CSP', () => {
+  const html = createLlmHtmlShellDocument({ frameId: 'frame-1', token: 'token-1' });
 
   assert.match(html, /Content-Security-Policy/);
   assert.match(html, /default-src 'none'/);
-  assert.doesNotMatch(html, /bad\(\)/);
-});
-
-test('createSandboxedHtmlDocument injects llm-html styles and runtime before content', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><head><title>x</title></head><body><div class="tabs"><div class="tab" data-label="A">A</div></div></body></html>');
-
+  assert.match(html, /script-src 'nonce-token-1'/);
+  assert.match(html, /id="llm-html-root"/);
+  assert.match(html, /ResizeObserver/);
+  assert.match(html, /postMessage/);
+  assert.match(html, /frame-1/);
+  assert.match(html, /token-1/);
   assert.match(html, /data-yaca-llm-html-style/);
   assert.match(html, /data-yaca-llm-html-runtime/);
-  assert.match(html, /\.note-info/);
-  assert.match(html, /initLlmHtmlTabs/);
   assert.equal(html.includes(LLM_HTML_STYLES), true);
   assert.equal(html.includes(LLM_HTML_INTERACTION_SCRIPT), true);
-  assert.equal(html.indexOf('data-yaca-llm-html-style') < html.indexOf('<title>x</title>'), true);
+  assert.doesNotMatch(html, /<h1>Preview/);
 });
 
-test('createSandboxedHtmlDocument creates a head for full html without one', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><body><h1>Preview</h1></body></html>');
-
-  assert.match(html, /<head>/i);
-  assert.match(html, /data-yaca-llm-html-style/);
-  assert.equal(html.indexOf('<head>') < html.indexOf('<body>'), true);
-});
-
-test('createSandboxedHtmlDocument strips llm authored scripts while keeping injected runtime', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><body><h1>Safe</h1><script>window.evil = true</script></body></html>');
+test('createLlmHtmlPayload strips unsafe authored html', () => {
+  const html = createLlmHtmlPayload('<body><h1 onclick="bad()">Safe</h1><script>window.evil = true</script><a href="javascript:bad()">x</a><img src="data:image/png;base64,aaa" style="width:999px"></body>', { mode: 'stream' });
 
   assert.doesNotMatch(html, /window\.evil/);
-  assert.match(html, /data-yaca-llm-html-runtime/);
-  assert.match(html, /initLlmHtmlTabs/);
+  assert.doesNotMatch(html, /onclick=/);
+  assert.doesNotMatch(html, /style=/);
+  assert.match(html, /href="#"/);
+  assert.match(html, /src="data:image\/png;base64,aaa"/);
 });
 
-test('createSandboxedHtmlDocument closes streaming html before final output arrives', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><head><title>x</title></head><body><section><h1>Streaming');
+test('createLlmHtmlPayload accepts incomplete streaming body content', () => {
+  const html = createLlmHtmlPayload('<body><section><h1>Streaming', { mode: 'stream' });
 
-  assert.match(html, /<\/body><\/html>\s*$/i);
   assert.equal(html.includes('<h1>Streaming'), true);
+  assert.doesNotMatch(html, /<\/body>|<\/html>|<!doctype/i);
 });
 
-test('createSandboxedHtmlDocument normalizes custom component tags to preset classes', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><body><note-info>Use class names</note-info><tag-blue>ref</tag-blue></body></html>');
+test('createLlmHtmlPayload normalizes custom component tags to preset classes', () => {
+  const html = createLlmHtmlPayload('<body><note-info>Use class names</note-info><tag-blue>ref</tag-blue></body>', { mode: 'final' });
 
   assert.match(html, /<div class="note-info">Use class names<\/div>/);
   assert.match(html, /<span class="tag-blue">ref<\/span>/);
   assert.doesNotMatch(html, /<note-info>/);
 });
 
-test('createSandboxedHtmlDocument highlights language code blocks with prism tokens', () => {
-  const html = createSandboxedHtmlDocument('<!doctype html><html><body><pre><code class="language-js">const answer = 42;</code></pre></body></html>');
+test('createLlmHtmlPayload highlights code blocks only in final mode', () => {
+  const source = '<body><pre><code class="language-js">const answer = 42;</code></pre></body>';
+  const streaming = createLlmHtmlPayload(source, { mode: 'stream' });
+  const final = createLlmHtmlPayload(source, { mode: 'final' });
 
-  assert.match(html, /class="token keyword"/);
-  assert.match(html, /class="token number"/);
-  assert.match(html, /language-js/);
+  assert.doesNotMatch(streaming, /class="token keyword"/);
+  assert.match(final, /class="token keyword"/);
+  assert.match(final, /class="token number"/);
+  assert.match(final, /language-js/);
 });
 
 test('llm-html styles render steps as horizontal flow cards without grid layout', () => {
@@ -82,4 +79,11 @@ test('llm-html prompt says presets are class names and encourages dense structur
   assert.match(LLM_HTML_PROMPT, /collapse/i);
   assert.match(LLM_HTML_PROMPT, /information density/i);
   assert.match(LLM_HTML_PROMPT, /avoid relying on fenced code blocks/i);
+});
+
+test('ThreadView keeps assistant-ui message component identity stable across streaming renders', () => {
+  const source = readFileSync('apps/yaca-web/src/components/chat/ThreadView.tsx', 'utf8');
+
+  assert.match(source, /THREAD_MESSAGE_COMPONENTS/);
+  assert.doesNotMatch(source, /components=\{\{\s*Message:/);
 });
