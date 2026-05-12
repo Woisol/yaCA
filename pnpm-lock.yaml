@@ -52,6 +52,9 @@ importers:
       '@assistant-ui/react':
         specifier: ^0.14.0
         version: 0.14.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.5.0(react@19.2.5))
+      '@woisol-g/llm-html':
+        specifier: workspace:*
+        version: link:../../packages/llm-html
       lucide-react:
         specifier: ^1.14.0
         version: 1.14.0(react@19.2.5)
@@ -136,6 +139,8 @@ importers:
         version: 0.3.1
 
   packages/agent-tools: {}
+
+  packages/llm-html: {}
 
   packages/shared/types: {}
 

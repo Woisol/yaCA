@@ -35,6 +35,9 @@
       "@woisol-g/yaca-web/*": [
         "./apps/yaca-web/src/*"
       ],
+      "@woisol-g/llm-html": [
+        "./packages/llm-html/src/index.ts"
+      ],
       "@woisol-g/yaca/web-runtime.js": [
         "./apps/web-runtime.ts"
       ],

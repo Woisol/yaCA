@@ -6,8 +6,12 @@ test('buildYacaWebSystemPrompt describes web markdown and html rendering in defa
   const prompt = buildYacaWebSystemPrompt({ toolCallCompatible: false });
 
   assert.match(prompt, /yaCA Web interface/);
+  assert.match(prompt, /HTML-first/i);
   assert.match(prompt, /renders Markdown/);
   assert.match(prompt, /<!doctype html>/i);
+  assert.match(prompt, /note-info/);
+  assert.match(prompt, /tabs/);
+  assert.match(prompt, /Do not write scripts/i);
   assert.doesNotMatch(prompt, /Markdown render is not supported/);
   assert.doesNotMatch(prompt, /<tool_call name=/);
 });
@@ -16,6 +20,7 @@ test('buildYacaWebSystemPrompt preserves XML tool instructions in compatible mod
   const prompt = buildYacaWebSystemPrompt({ toolCallCompatible: true, toolHint: 'read_file: Read file' });
 
   assert.match(prompt, /renders Markdown/);
+  assert.match(prompt, /HTML-first/i);
   assert.match(prompt, /<tool_call name="tool_name">/);
   assert.match(prompt, /read_file: Read file/);
 });
