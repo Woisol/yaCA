@@ -1,5 +1,3 @@
-import { refractor } from 'refractor';
-
 export const LLM_HTML_STYLES = String.raw`
 :root {
   color-scheme: light;
@@ -479,10 +477,9 @@ export function createLlmHtmlShellDocument(options: { frameId: string; token: st
   ].join('');
 }
 
-export function createLlmHtmlPayload(input: string, options: { mode: LlmHtmlPayloadMode }): string {
+export function createLlmHtmlPayload(input: string, _options: { mode: LlmHtmlPayloadMode }): string {
   const body = extractBodyContent(input.trim());
-  const normalized = normalizePresetElements(sanitizeAuthoredHtml(body));
-  return options.mode === 'final' ? highlightCodeBlocks(normalized) : normalized;
+  return normalizePresetElements(sanitizeAuthoredHtml(body));
 }
 
 function createShellRuntimeScript(frameId: string, token: string): string {
@@ -630,63 +627,6 @@ function mergeClassAttribute(attrs: string, className: string): string {
     });
   }
   return ` class="${className}"${source}`;
-}
-
-function highlightCodeBlocks(html: string): string {
-  return html.replace(/<pre\b([^>]*)>\s*<code\b([^>]*)>([\s\S]*?)<\/code\s*>\s*<\/pre\s*>/gi, (match: string, preAttrs: string, codeAttrs: string, encodedCode: string) => {
-    const language = getCodeLanguage(codeAttrs);
-    if (!language || !refractor.registered(language)) return match;
-    const code = decodeHtml(encodedCode);
-    const highlighted = toHtml(refractor.highlight(code, language).children);
-    return `<pre${preAttrs}><code${codeAttrs}>${highlighted}</code></pre>`;
-  });
-}
-
-function getCodeLanguage(attrs: string): string | null {
-  const match = /\bclass\s*=\s*(["'])(.*?)\1/i.exec(attrs);
-  const className = match?.[2] ?? '';
-  const language = /(?:^|\s)language-([^\s]+)/i.exec(className)?.[1] ?? null;
-  if (!language) return null;
-  if (language.toLowerCase() === 'js') return 'javascript';
-  if (language.toLowerCase() === 'ts') return 'typescript';
-  return language.toLowerCase();
-}
-
-type HastNode = {
-  type: string;
-  value?: string;
-  tagName?: string;
-  properties?: Record<string, unknown>;
-  children?: HastNode[];
-};
-
-function toHtml(nodes: HastNode[]): string {
-  return nodes.map((node) => {
-    if (node.type === 'text') return escapeHtmlText(node.value ?? '');
-    if (node.type !== 'element' || !node.tagName) return '';
-    const attrs = propertiesToAttributes(node.properties ?? {});
-    return `<${node.tagName}${attrs}>${toHtml(node.children ?? [])}</${node.tagName}>`;
-  }).join('');
-}
-
-function propertiesToAttributes(properties: Record<string, unknown>): string {
-  return Object.entries(properties)
-    .map(([name, value]) => {
-      if (value === null || value === undefined || value === false) return '';
-      const attrName = name === 'className' ? 'class' : name;
-      const attrValue = Array.isArray(value) ? value.join(' ') : String(value);
-      return ` ${attrName}="${escapeHtmlAttribute(attrValue)}"`;
-    })
-    .join('');
-}
-
-function decodeHtml(value: string): string {
-  return value
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&');
 }
 
 function escapeHtmlText(value: string): string {

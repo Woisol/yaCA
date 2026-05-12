@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createLlmHtmlPayload, createLlmHtmlShellDocument, LLM_HTML_INTERACTION_SCRIPT, LLM_HTML_PROMPT, LLM_HTML_STYLES } from '../packages/llm-html/src/index.js';
-import { getMessageRenderMode } from '../apps/yaca-web/src/lib/message-rendering.js';
+import { highlightLlmHtmlCodeBlocks } from '../packages/llm-html/src/highlight.js';
+import { createHighlightedSandboxedHtmlPayload, getMessageRenderMode } from '../apps/yaca-web/src/lib/message-rendering.js';
 
 test('getMessageRenderMode uses html only for body wrapped output', () => {
   assert.equal(getMessageRenderMode('\n<body><h1>Preview</h1>'), 'html');
@@ -54,15 +55,30 @@ test('createLlmHtmlPayload normalizes custom component tags to preset classes', 
   assert.doesNotMatch(html, /<note-info>/);
 });
 
-test('createLlmHtmlPayload highlights code blocks only in final mode', () => {
+test('createLlmHtmlPayload keeps stream and final payloads lightweight before async highlighting', () => {
   const source = '<body><pre><code class="language-js">const answer = 42;</code></pre></body>';
   const streaming = createLlmHtmlPayload(source, { mode: 'stream' });
   const final = createLlmHtmlPayload(source, { mode: 'final' });
 
   assert.doesNotMatch(streaming, /class="token keyword"/);
-  assert.match(final, /class="token keyword"/);
-  assert.match(final, /class="token number"/);
+  assert.doesNotMatch(final, /class="token keyword"/);
   assert.match(final, /language-js/);
+});
+
+test('highlightLlmHtmlCodeBlocks uses the full prism language registry in a split entry', () => {
+  const source = createLlmHtmlPayload('<body><pre><code class="language-tsx">const view = <Panel title="x" />;</code></pre><pre><code>const answer = 42;</code></pre></body>', { mode: 'final' });
+  const highlighted = highlightLlmHtmlCodeBlocks(source);
+
+  assert.match(highlighted, /class="token keyword"/);
+  assert.match(highlighted, /class="token tag"/);
+  assert.match(highlighted, /class="token number"/);
+});
+
+test('createHighlightedSandboxedHtmlPayload dynamically loads final code highlighting', async () => {
+  const highlighted = await createHighlightedSandboxedHtmlPayload('<body><pre><code class="language-tsx">const view = <Panel title="x" />;</code></pre></body>');
+
+  assert.match(highlighted, /class="token keyword"/);
+  assert.match(highlighted, /class="token tag"/);
 });
 
 test('llm-html styles render steps as horizontal flow cards without grid layout', () => {
@@ -79,4 +95,20 @@ test('llm-html prompt says presets are class names and encourages dense structur
   assert.match(LLM_HTML_PROMPT, /collapse/i);
   assert.match(LLM_HTML_PROMPT, /information density/i);
   assert.match(LLM_HTML_PROMPT, /avoid relying on fenced code blocks/i);
+});
+
+test('ThreadView keeps assistant-ui message component identity stable across streaming renders', () => {
+  const source = readFileSync('apps/yaca-web/src/components/chat/ThreadView.tsx', 'utf8');
+  const executableSource = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+  assert.match(source, /THREAD_MESSAGE_COMPONENTS/);
+  assert.doesNotMatch(executableSource, /components=\{\{\s*Message:/);
+});
+
+test('llm-html keeps full prism registry out of the lightweight entry', () => {
+  const lightweightEntry = readFileSync('packages/llm-html/src/index.ts', 'utf8');
+  const highlightEntry = readFileSync('packages/llm-html/src/highlight.ts', 'utf8');
+
+  assert.doesNotMatch(lightweightEntry, /refractor\/all/);
+  assert.match(highlightEntry, /refractor\/all/);
 });
