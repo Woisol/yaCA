@@ -35,6 +35,9 @@
       "@woisol-g/yaca-web/*": [
         "./apps/yaca-web/src/*"
       ],
+      "@woisol-g/yaca/web-runtime.js": [
+        "./apps/web-runtime.ts"
+      ],
       "@yaca/agent-core": [
         "./packages/agent-core/src/index.ts"
       ],

@@ -3,5 +3,6 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'packages/shared/*'
+autoInstallPeers: false
 allowBuilds:
   esbuild: true

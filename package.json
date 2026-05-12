@@ -6,6 +6,10 @@
   "bin": {
     "yaca": "./dist/index.js"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "./web-runtime.js": "./dist/web-runtime.js"
+  },
   "files": [
     "dist"
   ],
