@@ -5,7 +5,7 @@ on:
   release:
     types: [published]
   push:
-    tags: ['v*']
+    tags: ['llm-v*']
 
 jobs:
   publish:
@@ -51,7 +51,7 @@ jobs:
         run: pnpm --filter @woisol-g/llm-html pack --pack-destination "$PWD"
 
       - name: Publish llm-html package
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'release')
         working-directory: packages/llm-html
         run: |
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
