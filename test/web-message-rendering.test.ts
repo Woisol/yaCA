@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSandboxedHtmlDocument, getMessageRenderMode, parseMarkdownBlocks } from '../apps/yaca-web/src/lib/message-rendering.js';
+import { createSandboxedHtmlDocument, getMessageRenderMode } from '../apps/yaca-web/src/lib/message-rendering.js';
 
 test('getMessageRenderMode uses html only for doctype html documents', () => {
   assert.equal(getMessageRenderMode('\n<!doctype html><html></html>'), 'html');
@@ -14,15 +14,4 @@ test('createSandboxedHtmlDocument injects a restrictive CSP before user html', (
   assert.match(html, /Content-Security-Policy/);
   assert.match(html, /default-src 'none'/);
   assert.equal(html.indexOf('Content-Security-Policy') < html.indexOf('<script>bad()'), true);
-});
-
-test('parseMarkdownBlocks recognizes headings, lists, fenced code, and paragraphs', () => {
-  const blocks = parseMarkdownBlocks('# Title\n\n- one\n- two\n\n```ts\nconst x = 1;\n```\n\nplain **text**');
-
-  assert.deepEqual(blocks, [
-    { type: 'heading', level: 1, text: 'Title' },
-    { type: 'list', ordered: false, items: ['one', 'two'] },
-    { type: 'code', language: 'ts', text: 'const x = 1;' },
-    { type: 'paragraph', text: 'plain **text**' }
-  ]);
 });
