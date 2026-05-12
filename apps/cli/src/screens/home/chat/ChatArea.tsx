@@ -1,18 +1,16 @@
 import { reduceMessageFile } from '../../../api/format/index.js';
 import { Box, Text, useStdout } from 'ink';
 import type { ChatMessage } from '@yaca/ui';
+import { InitBox } from './InitBox.js';
 export type { ChatMessage } from '@yaca/ui';
 
 export function ChatArea({ messages, hasSession }: { messages: ChatMessage[]; hasSession: boolean }) {
   const { stdout } = useStdout();
   return (
     <Box flexDirection="column">
-      {!hasSession ? (
-        <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
-          <Text color="gray">Send a message to create a session or use /resume to browse history.</Text>
-        </Box>
-      ) : messages.length === 0 ? (
-        <Box alignItems="center" justifyContent="center" minHeight={stdout.rows - 10}>
+      <InitBox />
+      {hasSession && messages.length === 0 ? (
+        <Box alignItems="center" justifyContent="center" minHeight={3}>
             <Text color="gray">No messages yet. Start the conversation by typing!</Text>
         </Box>
       ) : (
