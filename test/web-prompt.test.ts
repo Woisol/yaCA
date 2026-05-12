@@ -11,6 +11,9 @@ test('buildYacaWebSystemPrompt describes web markdown and html rendering in defa
   assert.match(prompt, /<!doctype html>/i);
   assert.match(prompt, /note-info/);
   assert.match(prompt, /tabs/);
+  assert.match(prompt, /CSS class names/i);
+  assert.match(prompt, /not custom elements/i);
+  assert.match(prompt, /information density/i);
   assert.match(prompt, /Do not write scripts/i);
   assert.doesNotMatch(prompt, /Markdown render is not supported/);
   assert.doesNotMatch(prompt, /<tool_call name=/);

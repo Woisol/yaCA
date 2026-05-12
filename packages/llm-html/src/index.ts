@@ -1,3 +1,5 @@
+import { refractor } from 'refractor';
+
 export const LLM_HTML_STYLES = String.raw`
 :root {
   color-scheme: light;
@@ -68,6 +70,7 @@ pre {
   border: 1px solid var(--llm-line);
   border-radius: 8px;
   background: var(--llm-code);
+  color: #28313a;
 }
 
 code {
@@ -196,24 +199,93 @@ th {
 }
 
 .steps {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 26px;
+  align-items: stretch;
 }
 
 .step {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 9px;
-  align-items: start;
-  padding: 9px 10px;
+  position: relative;
+  flex: 1 1 220px;
+  min-width: min(100%, 220px);
+  padding: 14px 16px;
   border: 1px solid var(--llm-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--llm-panel);
+  box-shadow: 0 10px 24px rgb(30 37 43 / 8%);
 }
 
-.step-check:checked + .step-content {
+.step:not(:last-child)::after {
+  content: '->';
+  position: absolute;
+  top: 50%;
+  right: -22px;
+  color: var(--llm-muted);
+  font-weight: 800;
+  transform: translateY(-50%);
+}
+
+.step-check {
+  margin: 0 8px 0 0;
+  vertical-align: -2px;
+}
+
+.step:has(.step-check:checked) {
   color: var(--llm-muted);
   text-decoration: line-through;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6b7280;
+}
+
+.token.punctuation {
+  color: #667085;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #b42318;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #067647;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.token.variable {
+  color: #175cd3;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #6941c6;
+}
+
+.token.function,
+.token.class-name {
+  color: #b54708;
+}
+
+.token.regex,
+.token.important {
+  color: #c11574;
 }
 
 .tag-blue,
@@ -273,6 +345,13 @@ th {
   .col-con {
     grid-template-columns: 1fr;
   }
+
+  .step:not(:last-child)::after {
+    top: auto;
+    right: 50%;
+    bottom: -20px;
+    transform: translateX(50%) rotate(90deg);
+  }
 }
 `;
 
@@ -326,14 +405,11 @@ export const LLM_HTML_INTERACTION_SCRIPT = String.raw`
   function initLlmHtmlSteps() {
     document.querySelectorAll('.steps > .step').forEach((step, index) => {
       if (step.querySelector(':scope > .step-check')) return;
-      const content = document.createElement('span');
-      content.className = 'step-content';
-      while (step.firstChild) content.append(step.firstChild);
       const checkbox = document.createElement('input');
       checkbox.className = 'step-check';
       checkbox.type = 'checkbox';
       checkbox.setAttribute('aria-label', 'Mark step ' + (index + 1) + ' complete');
-      step.append(checkbox, content);
+      step.prepend(checkbox);
     });
   }
 
@@ -355,7 +431,154 @@ export const LLM_HTML_PROMPT = [
   'HTML-first output for yaCA Web:',
   'When an answer benefits from visual structure, output a complete standalone HTML document beginning with <!doctype html>. The web UI renders it in an isolated iframe and injects preset CSS and interaction JS.',
   'Do not write scripts. Do not rely on inline style or custom CSS unless the user explicitly asks for a standalone artifact that needs it.',
-  'Use normal HTML for headings, paragraphs, lists, tables, links, strong text, and code blocks.',
+  'Use normal HTML for headings, paragraphs, lists, tables, links, and strong text.',
+  'Preset names are CSS class names, not custom elements: write <div class="note-info">...</div>, never <note-info>...</note-info>.',
   'Available preset components: note-info, note-success, note-warning, note-danger; details.collapse; .tabs with child .tab[data-label]; .col-con with children .col-1, .col-2, etc.; .steps with child .step; inline tags tag-blue, tag-green, tag-yellow, tag-red and tag-bg-blue, tag-bg-green, tag-bg-yellow, tag-bg-red.',
+  'For higher information density, combine related content with col-con and tabs, collapse lower-priority detail with details.collapse, and avoid relying on fenced code blocks as the primary layout.',
   'For plain explanations, code review, debugging, and tool-driven work where HTML would add no value, Markdown remains supported.'
 ].join('\n');
+
+export function createLlmHtmlDocument(input: string): string {
+  const body = normalizePresetElements(highlightCodeBlocks(stripScripts(input.trim())));
+  const headInjection = createHeadInjection();
+  const closedBody = closeStreamingDocument(body);
+
+  if (/^\s*<!doctype html>/i.test(closedBody)) {
+    if (/<head[^>]*>/i.test(closedBody)) {
+      return closedBody.replace(/<head([^>]*)>/i, `<head$1>${headInjection}`);
+    }
+    if (/<html[^>]*>/i.test(closedBody)) {
+      return closedBody.replace(/<html([^>]*)>/i, `<html$1><head>${headInjection}</head>`);
+    }
+    return closedBody.replace(/^\s*<!doctype html>/i, `<!doctype html><html><head>${headInjection}</head><body>`).concat('</body></html>');
+  }
+
+  return `<!doctype html><html><head>${headInjection}</head><body>${closedBody}</body></html>`;
+}
+
+function createHeadInjection(): string {
+  const csp = "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; media-src data:; connect-src 'none'; base-uri 'none'; form-action 'none';";
+  return [
+    '<meta charset="utf-8">',
+    `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttribute(csp)}">`,
+    `<style data-yaca-llm-html-style>${LLM_HTML_STYLES}</style>`,
+    `<script data-yaca-llm-html-runtime>${LLM_HTML_INTERACTION_SCRIPT}</script>`
+  ].join('');
+}
+
+function closeStreamingDocument(html: string): string {
+  if (!/^\s*<!doctype html>/i.test(html)) return html;
+
+  const hasHtmlClose = /<\/html\s*>\s*$/i.test(html);
+  const hasBodyClose = /<\/body\s*>/i.test(html);
+
+  if (hasHtmlClose) return html;
+  if (hasBodyClose) return `${html}</html>`;
+  if (/<body[^>]*>/i.test(html)) return `${html}</body></html>`;
+  return html;
+}
+
+function stripScripts(html: string): string {
+  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+}
+
+function normalizePresetElements(html: string): string {
+  const blockClasses = ['note-info', 'note-success', 'note-warning', 'note-danger', 'collapse', 'tabs', 'tab', 'col-con', 'steps', 'step'];
+  const inlineClasses = ['tag-blue', 'tag-green', 'tag-yellow', 'tag-red', 'tag-bg-blue', 'tag-bg-green', 'tag-bg-yellow', 'tag-bg-red'];
+  let normalized = html;
+
+  for (const className of blockClasses) {
+    normalized = replaceCustomElement(normalized, className, 'div');
+  }
+  for (const className of inlineClasses) {
+    normalized = replaceCustomElement(normalized, className, 'span');
+  }
+
+  return normalized;
+}
+
+function replaceCustomElement(html: string, name: string, tagName: 'div' | 'span'): string {
+  const elementPattern = new RegExp(`<${name}(\\s[^>]*)?>([\\s\\S]*?)<\\/${name}\\s*>`, 'gi');
+  const selfClosingPattern = new RegExp(`<${name}(\\s[^>]*)?\\/>`, 'gi');
+
+  return html
+    .replace(elementPattern, (_match: string, attrs = '', content: string) => `<${tagName}${mergeClassAttribute(attrs, name)}>${content}</${tagName}>`)
+    .replace(selfClosingPattern, (_match: string, attrs = '') => `<${tagName}${mergeClassAttribute(attrs, name)}></${tagName}>`);
+}
+
+function mergeClassAttribute(attrs: string, className: string): string {
+  const source = attrs ?? '';
+  if (/\sclass\s*=/i.test(source)) {
+    return source.replace(/\sclass\s*=\s*(["'])(.*?)\1/i, (_match: string, quote: string, value: string) => {
+      const classes = value.split(/\s+/).filter(Boolean);
+      if (!classes.includes(className)) classes.unshift(className);
+      return ` class=${quote}${classes.join(' ')}${quote}`;
+    });
+  }
+  return ` class="${className}"${source}`;
+}
+
+function highlightCodeBlocks(html: string): string {
+  return html.replace(/<pre\b([^>]*)>\s*<code\b([^>]*)>([\s\S]*?)<\/code\s*>\s*<\/pre\s*>/gi, (match: string, preAttrs: string, codeAttrs: string, encodedCode: string) => {
+    const language = getCodeLanguage(codeAttrs);
+    if (!language || !refractor.registered(language)) return match;
+    const code = decodeHtml(encodedCode);
+    const highlighted = toHtml(refractor.highlight(code, language).children);
+    return `<pre${preAttrs}><code${codeAttrs}>${highlighted}</code></pre>`;
+  });
+}
+
+function getCodeLanguage(attrs: string): string | null {
+  const match = /\bclass\s*=\s*(["'])(.*?)\1/i.exec(attrs);
+  const className = match?.[2] ?? '';
+  const language = /(?:^|\s)language-([^\s]+)/i.exec(className)?.[1] ?? null;
+  if (!language) return null;
+  if (language.toLowerCase() === 'js') return 'javascript';
+  if (language.toLowerCase() === 'ts') return 'typescript';
+  return language.toLowerCase();
+}
+
+type HastNode = {
+  type: string;
+  value?: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+};
+
+function toHtml(nodes: HastNode[]): string {
+  return nodes.map((node) => {
+    if (node.type === 'text') return escapeHtmlText(node.value ?? '');
+    if (node.type !== 'element' || !node.tagName) return '';
+    const attrs = propertiesToAttributes(node.properties ?? {});
+    return `<${node.tagName}${attrs}>${toHtml(node.children ?? [])}</${node.tagName}>`;
+  }).join('');
+}
+
+function propertiesToAttributes(properties: Record<string, unknown>): string {
+  return Object.entries(properties)
+    .map(([name, value]) => {
+      if (value === null || value === undefined || value === false) return '';
+      const attrName = name === 'className' ? 'class' : name;
+      const attrValue = Array.isArray(value) ? value.join(' ') : String(value);
+      return ` ${attrName}="${escapeHtmlAttribute(attrValue)}"`;
+    })
+    .join('');
+}
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function escapeHtmlText(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return escapeHtmlText(value).replaceAll('"', '&quot;');
+}

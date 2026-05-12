@@ -140,7 +140,11 @@ importers:
 
   packages/agent-tools: {}
 
-  packages/llm-html: {}
+  packages/llm-html:
+    dependencies:
+      refractor:
+        specifier: ^5.0.0
+        version: 5.0.0
 
   packages/shared/types: {}
 
