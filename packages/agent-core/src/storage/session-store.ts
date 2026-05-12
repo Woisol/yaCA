@@ -64,6 +64,21 @@ export class SessionStore {
     return this.requireSession(id);
   }
 
+  async renameSession(id: string, name: string): Promise<SessionMeta> {
+    const session = await this.requireSession(id);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new Error('Session name cannot be empty');
+    }
+    const updated: SessionMeta = {
+      ...session,
+      name: trimmed.slice(0, 80),
+      updated_at: new Date().toISOString()
+    };
+    await this.updateSession(updated);
+    return updated;
+  }
+
   async appendMessage(id: string, message: ChatMessage): Promise<void> {
     const session = await this.requireSession(id);
     await mkdir(this.sessionDirectory(id), { recursive: true });

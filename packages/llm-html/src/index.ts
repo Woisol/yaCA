@@ -13,6 +13,20 @@ export const LLM_HTML_STYLES = String.raw`
   --llm-red: #c23131;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --llm-bg: #111417;
+  --llm-text: #e7ebef;
+  --llm-muted: #9aa5b1;
+  --llm-line: #2f3740;
+  --llm-panel: #181d22;
+  --llm-code: #20262d;
+  --llm-blue: #82aaff;
+  --llm-green: #7dd3a1;
+  --llm-yellow: #f4c36a;
+  --llm-red: #ff8a8a;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -68,7 +82,7 @@ pre {
   border: 1px solid var(--llm-line);
   border-radius: 8px;
   background: var(--llm-code);
-  color: #28313a;
+  color: var(--llm-text);
 }
 
 code {
@@ -104,6 +118,11 @@ td {
 
 th {
   background: #eef3f8;
+}
+
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] .tab-list {
+  background: #202832;
 }
 
 .note-info,
@@ -295,6 +314,58 @@ th {
   color: #c11574;
 }
 
+:root[data-theme="dark"] .token.comment,
+:root[data-theme="dark"] .token.prolog,
+:root[data-theme="dark"] .token.doctype,
+:root[data-theme="dark"] .token.cdata {
+  color: #8c96a3;
+}
+
+:root[data-theme="dark"] .token.punctuation {
+  color: #a8b3bf;
+}
+
+:root[data-theme="dark"] .token.property,
+:root[data-theme="dark"] .token.tag,
+:root[data-theme="dark"] .token.boolean,
+:root[data-theme="dark"] .token.number,
+:root[data-theme="dark"] .token.constant,
+:root[data-theme="dark"] .token.symbol {
+  color: #ff9b8f;
+}
+
+:root[data-theme="dark"] .token.selector,
+:root[data-theme="dark"] .token.attr-name,
+:root[data-theme="dark"] .token.string,
+:root[data-theme="dark"] .token.char,
+:root[data-theme="dark"] .token.builtin,
+:root[data-theme="dark"] .token.inserted {
+  color: #8bdba9;
+}
+
+:root[data-theme="dark"] .token.operator,
+:root[data-theme="dark"] .token.entity,
+:root[data-theme="dark"] .token.url,
+:root[data-theme="dark"] .token.variable {
+  color: #8db5ff;
+}
+
+:root[data-theme="dark"] .token.atrule,
+:root[data-theme="dark"] .token.attr-value,
+:root[data-theme="dark"] .token.keyword {
+  color: #c6a6ff;
+}
+
+:root[data-theme="dark"] .token.function,
+:root[data-theme="dark"] .token.class-name {
+  color: #ffd08a;
+}
+
+:root[data-theme="dark"] .token.regex,
+:root[data-theme="dark"] .token.important {
+  color: #ff9dcc;
+}
+
 .tag-blue,
 .tag-green,
 .tag-yellow,
@@ -342,6 +413,26 @@ th {
 .tag-bg-red {
   color: #7f1d1d;
   background: #fee2e2;
+}
+
+:root[data-theme="dark"] .tag-bg-blue {
+  color: #dbeafe;
+  background: #1d3f78;
+}
+
+:root[data-theme="dark"] .tag-bg-green {
+  color: #dcfce7;
+  background: #1f5131;
+}
+
+:root[data-theme="dark"] .tag-bg-yellow {
+  color: #fef3c7;
+  background: #5b431a;
+}
+
+:root[data-theme="dark"] .tag-bg-red {
+  color: #fee2e2;
+  background: #633033;
 }
 
 @media (max-width: 700px) {
@@ -532,6 +623,7 @@ function createShellRuntimeScript(frameId: string, token: string): string {
     if (!isFrameMessage(event)) return;
     const data = event.data;
     if (data.type !== 'update' || !root) return;
+    document.documentElement.dataset.theme = data.theme === 'dark' ? 'dark' : 'light';
     root.innerHTML = typeof data.html === 'string' ? data.html : '';
     if (typeof window.__yacaInitLlmHtmlRuntime === 'function') {
       window.__yacaInitLlmHtmlRuntime();

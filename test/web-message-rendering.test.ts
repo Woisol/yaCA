@@ -30,6 +30,15 @@ test('createLlmHtmlShellDocument creates a stable iframe shell with restrictive 
   assert.doesNotMatch(html, /<h1>Preview/);
 });
 
+test('llm-html iframe shell supports explicit dark theme updates', () => {
+  const html = createLlmHtmlShellDocument({ frameId: 'frame-1', token: 'token-1' });
+
+  assert.match(LLM_HTML_STYLES, /\[data-theme="dark"\]/);
+  assert.match(LLM_HTML_STYLES, /color-scheme:\s*dark/i);
+  assert.match(html, /document\.documentElement\.dataset\.theme/);
+  assert.match(html, /data\.theme/);
+});
+
 test('createLlmHtmlPayload strips unsafe authored html', () => {
   const html = createLlmHtmlPayload('<body><h1 onclick="bad()">Safe</h1><script>window.evil = true</script><a href="javascript:bad()">x</a><img src="data:image/png;base64,aaa" style="width:999px"></body>', { mode: 'stream' });
 

@@ -54,3 +54,20 @@ test('SessionStore rewrites messages when rewinding a session', async () => {
   assert.deepEqual(messages.map((message) => message.content), ['first', 'answer']);
   assert.equal(updated.message_count, 2);
 });
+
+test('SessionStore renames a session without changing message counters', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'yaca-store-'));
+  const workspace = path.join(home, 'workspace');
+  const store = new SessionStore({ homeDirectory: home, workspace });
+  const session = await store.createSession('New session');
+  await store.appendMessage(session.id, { role: 'user', content: 'hello' });
+
+  const renamed = await store.renameSession(session.id, 'Discuss session routing');
+  const listed = await store.listSessions();
+  const loaded = await store.resumeSession(session.id);
+
+  assert.equal(renamed.name, 'Discuss session routing');
+  assert.equal(loaded.name, 'Discuss session routing');
+  assert.equal(loaded.message_count, 1);
+  assert.equal(listed[0]?.id, session.id);
+});
