@@ -1,6 +1,6 @@
 {
   "name": "@woisol-g/yaca",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Yet another Coding Agent.",
   "type": "module",
   "bin": {
@@ -20,7 +20,8 @@
     "test": "pnpm run typecheck && node --import tsx --test test/*.test.ts",
     "dev:cli": "tsx apps/index.ts",
     "dev:web": "tsx apps/index.ts --serve",
-    "build:watch": "cd apps/yaca-web; vp build --watch",
+    "build:watch": "pnpm --dir ./apps/yaca-web exec vp build --watch",
+    "build:web": "pnpm --dir ./apps/yaca-web run build",
     "start:cli": "node dist/index.js",
     "start:web": "node dist/index.js",
     "prepare": "husky"
@@ -31,7 +32,7 @@
     "ink": "^7.0.2",
     "ink-text-input": "^6.0.0",
     "openai": "^6.36.0",
-    "react": "^19.2.5"
+    "react": "=19.2.5"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

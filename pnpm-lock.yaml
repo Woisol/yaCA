@@ -24,7 +24,7 @@ importers:
         specifier: ^6.36.0
         version: 6.36.0(ws@8.20.0)(zod@4.4.3)
       react:
-        specifier: ^19.2.5
+        specifier: '=19.2.5'
         version: 19.2.5
     devDependencies:
       '@types/node':

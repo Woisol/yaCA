@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { pathToFileURL } from 'node:url';
-import { loadEnvFile, stdout as output } from 'node:process';
+import { loadEnvFile, stdin as input, stdout as output } from 'node:process';
 import { AgentLoop, ConfigStore, createModelClient, createToolPermissionController, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
 import { createDefaultToolRegistry } from '@yaca/agent-tools';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
@@ -105,6 +105,12 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
 
+  if (!canStartInteractiveRepl(input)) {
+    output.write(createNonInteractiveReplError());
+    process.exitCode = 1;
+    return;
+  }
+
   startInkRepl({ cwd, state, store, tools, toolPermissions, createAgent });
 }
 
@@ -172,6 +178,18 @@ export function parseArgs(argv: string[]): CliArgs {
     }
   }
   return args;
+}
+
+export function canStartInteractiveRepl(stdin: { isTTY?: boolean }): boolean {
+  return stdin.isTTY === true;
+}
+
+export function createNonInteractiveReplError(): string {
+  return [
+    'Error: yaca requires an interactive terminal for the default REPL.',
+    'Use `yaca --once "prompt"` for one-shot non-interactive runs, or `yaca --serve 3000` for the web UI.',
+    ''
+  ].join('\n');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
