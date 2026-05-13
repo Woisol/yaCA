@@ -245,4 +245,8 @@ pnpm dev:web
 pnpm --filter @woisol-g/yaca-web run build
 ```
 
+## 友链
+
+* Linux Do：https://linux.do
+
 如果这个项目对你有帮助，欢迎点 Star。
