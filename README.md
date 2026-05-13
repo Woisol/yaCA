@@ -1,5 +1,6 @@
-<div style="display: flex; flex-direction: column; align-items: center;">
-  <p style="white-space: pre; font-family: 'Courier New'; line-height: 1.3;">
+<div align="center">
+<!-- <div style="display: flex; flex-direction: column; align-items: center;"> -->
+  <!-- <p style="white-space: pre; font-family: 'Courier New'; line-height: 1.3;">
         ▄██████▄                    _____
     ▄████████████▄                 / ____|    /\
   ▄████▀     ▀████▄  _   _   __ _ | |        /  \
@@ -8,7 +9,8 @@
   ██          ██     \__, | \__,_| \_____|/_/    \_\
   ███▄      ▄██       __/ |
     ▀████████▀       |___/    yaCA - yet another Coding Agent
-  </p>
+  </p> -->
+  <img src="project/docs/img/README/hero.png" alt="yaCA Hero Image" style="width: 600px;" />
 </div>
 
 # yaCA
