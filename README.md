@@ -226,7 +226,7 @@ Web UI 提供：
 - Markdown 渲染、代码高亮、文件拖拽输入。
 - HTML-first LLM 输出渲染，使用 sandboxed iframe、流式更新、自适应高度和暗色主题。
 
-更多 Web 包细节见 `apps/yaca-web/README.md`。
+更多 Web 包细节见 `apps/yaca-web/README.md`，yaca-web 作为 Submodule 开源在另外一个仓库 [Woisol-G/yaCA-Web](https://github.com/Woisol/yaCA-web)
 
 ## 开发
 
