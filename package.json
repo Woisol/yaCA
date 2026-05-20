@@ -8,7 +8,7 @@
   },
   "exports": {
     ".": "./dist/index.js",
-    "./web-runtime.js": "./dist/web-runtime.js"
+    "./web-runtime.js": "./dist/index.js"
   },
   "files": [
     "dist"

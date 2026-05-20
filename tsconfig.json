@@ -42,7 +42,7 @@
         "./packages/llm-html/src/highlight.ts"
       ],
       "@woisol-g/yaca/web-runtime.js": [
-        "./apps/web-runtime.ts"
+        "./apps/index.ts"
       ],
       "@yaca/agent-core": [
         "./packages/agent-core/src/index.ts"
