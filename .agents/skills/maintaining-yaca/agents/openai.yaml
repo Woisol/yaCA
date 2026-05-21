@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maintain yaCA"
+  short_description: "Maintain the yaCA monorepo safely"
+  default_prompt: "Use $maintaining-yaca to plan and implement a focused yaCA maintenance change."
