@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { pathToFileURL } from 'node:url';
 import { loadEnvFile, stdin as input, stdout as output } from 'node:process';
-import { AgentLoop, ConfigStore, createModelClient, createToolPermissionController, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
-import { createDefaultToolRegistry } from '@yaca/agent-tools';
+import { AgentLoop, applySxmlPatch, collectAssistantText, ConfigStore, createModelClient, createToolPermissionController, parseUserInput, SessionStore, type CliState } from '@yaca/agent-core';
+import { createDefaultToolRegistry, createSubAgentToolDefinitions, ToolRegistry, type SubAgentRequest } from '@yaca/agent-tools';
 import { startInkRepl } from '@yaca/cli/screens/repl-ui.js';
 import { IS_DEV } from '../packages/shared/constants/dev.js';
-import { Logger } from '@yaca/utils/logger.js';
+import type { ToolResult } from '@yaca/types';
+import { createSubAgentPrompt } from '@yaca/agent-core/llm/prompt.js';
 
 export {
   AgentLoop,
@@ -42,8 +43,6 @@ type CliArgs = {
 };
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
-  // const logger = new Logger("main");
-
   if (IS_DEV) loadEnvFile();
 
   const args = parseArgs(argv);
@@ -56,6 +55,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const state: CliState = {
     model,
     baseUrl,
+    // TODO 其实对环境变量的处理应当统一提早到配置加载阶段……
     apiKey: process.env.YACA_API_KEY ?? config.api_key,
     configMtimeMs,
     trustMode: false,
@@ -69,7 +69,26 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const toolPermissions = createToolPermissionController(state, {
     request: (request) => state.toolCallConfirm?.(request) ?? false
   });
-  const tools = createDefaultToolRegistry(cwd);
+  const runSubAgent = async (request: SubAgentRequest): Promise<ToolResult> => {
+    const runtimeConfig = state.config;
+    const subTools = new ToolRegistry();
+    subTools.registerMany(createSubAgentToolDefinitions(request.kind, {
+      cwd,
+      hint: (toolName) => subTools.hint(toolName)
+    }));
+    const subAgent = new AgentLoop({
+      model: createModelClient({ baseUrl: state.baseUrl, model: state.model, apiKey: state.apiKey }),
+      maxTurns: runtimeConfig.max_turns,
+      maxToolRetry: runtimeConfig.max_tool_retry,
+      tools: subTools,
+      postponeToolCalls: runtimeConfig.tool_call.postpone_tool_calls,
+      toolCallCompatible: runtimeConfig.tool_call.tool_call_compatible,
+      toolCallTryFallback: runtimeConfig.tool_call.try_fallback,
+      onBeforeToolCall: toolPermissions.confirm
+    });
+    return collectSubAgentResult(subAgent, createSubAgentPrompt(request.kind, request.prompt));
+  };
+  const tools = createDefaultToolRegistry(cwd, { runSubAgent });
   const createAgent = () => {
     const runtimeConfig = state.config;
     return new AgentLoop({
@@ -139,6 +158,36 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   startInkRepl({ cwd, state, store, tools, toolPermissions, createAgent });
 }
+
+async function collectSubAgentResult(agent: AgentLoop, prompt: string): Promise<ToolResult> {
+  const assistantEvents: import('@yaca/agent-core').YacaSxmlEvent[] = [];
+  const errors: string[] = [];
+  let finalText = '';
+  for await (const event of agent.runStream([{ role: 'user', content: prompt }])) {
+    if (event.type === 'assistant_event') {
+      applySxmlPatch(assistantEvents, event.patch);
+    } else if (event.type === 'assistant_text') {
+      finalText = event.text;
+    } else if (event.type === 'assistant_delta') {
+      finalText += event.text;
+    } else if (event.type === 'tool_result') {
+      finalText = '';
+      assistantEvents.length = 0;
+    } else if (event.type === 'error') {
+      errors.push(event.message);
+    }
+  }
+  const text = finalText.trim() ? finalText : collectAssistantText(assistantEvents);
+  if (text.trim()) {
+    return { ok: true, content: text };
+  }
+  if (errors.length > 0) {
+    return { ok: false, content: errors.join('\n') };
+  }
+  return { ok: true, content: 'SubAgent finished without a final response.' };
+}
+
+
 
 function isMissingWebUiModule(error: unknown): boolean {
   return error instanceof Error

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { ToolDefinition, ToolResult } from '@yaca/types';
-import { createDefaultTools } from './tools/index.js';
+import { createDefaultTools, type SubAgentRunner } from './tools/index.js';
 
 export type ToolApprovalRequest = {
   name: string;
@@ -12,6 +12,10 @@ export type ToolApprovalMode = 'silent' | 'confirm';
 export type ToolRegistryOptions = {
   approvalMode?: ToolApprovalMode;
   confirm?: (request: ToolApprovalRequest) => boolean | Promise<boolean>;
+};
+
+export type DefaultToolRegistryOptions = ToolRegistryOptions & {
+  runSubAgent?: SubAgentRunner;
 };
 
 export class ToolRegistry {
@@ -69,17 +73,19 @@ export class ToolRegistry {
   }
 }
 
-export function createDefaultToolRegistry(cwd: string, options: ToolRegistryOptions = {}): ToolRegistry {
+export function createDefaultToolRegistry(cwd: string, options: DefaultToolRegistryOptions = {}): ToolRegistry {
   const root = path.resolve(cwd);
   const registry = new ToolRegistry(options);
 
   registry.registerMany(createDefaultTools({
     cwd: root,
-    hint: (toolName) => registry.hint(toolName)
+    hint: (toolName) => registry.hint(toolName),
+    runSubAgent: options.runSubAgent
   }));
 
   return registry;
 }
 
 export { createDefaultTools, filesystemTools, metaTools, systemTools, toolCategories } from './tools/index.js';
-export type { ToolFactory, ToolFactoryContext } from './tools/index.js';
+export { createSubAgentToolDefinitions } from './tools/subagent-registry.js';
+export type { SubAgentKind, SubAgentRequest, SubAgentRunner, ToolFactory, ToolFactoryContext } from './tools/index.js';

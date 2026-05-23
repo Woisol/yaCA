@@ -1,6 +1,6 @@
 import type { AgentEvent, ChatMessage, ChatToolCall, ModelClient, ToolCall, ToolDefinition, ToolResult } from '@yaca/types';
 import { applySxmlPatch, collectAssistantText, type YacaSxmlEvent } from './parser/sxml-adapter.js';
-import { buildOpenAIToolSystemPrompt, buildSystemPrompt } from './llm/model-client.js';
+import { buildOpenAIToolSystemPrompt, buildSystemPrompt } from './llm/prompt.js';
 import { createOpenAICompatibleAssistantTurn } from './llm/openai-compatible-assistant-turn.js';
 import { createSxmlAssistantTurn } from './llm/sxml-assistant-turn.js';
 import type { AgentRunOptions, AssistantTurnStrategy, PendingToolCall } from './llm/assistant-turn.js';
@@ -88,7 +88,7 @@ export class AgentLoop {
       }
 
       for (const call of turnResult.calls) {
-        const rawResponse = formatToolCallRawResponse(call);
+        const rawResponse = call.rawResponse;
         yield { type: 'tool_call', call, rawResponse };
         const result = await this.executeApprovedToolCall(call);
         yield { type: 'tool_result', call_id: call.call_id, result, rawResponse };
@@ -117,6 +117,7 @@ export class AgentLoop {
   }
 }
 
+// TODO 工具类函数应当迁移
 function nextConsecutiveToolFailures(current: number, result: ToolResult): number {
   return result.ok ? 0 : current + 1;
 }
@@ -130,10 +131,6 @@ function flushAssistantText(events: AgentEvent[], assistantEvents: YacaSxmlEvent
   if (!text) return;
   events.push({ type: 'assistant_text', text });
   assistantEvents.length = 0;
-}
-
-function formatToolCallRawResponse(call: PendingToolCall): string {
-  return call.rawResponse;
 }
 
 function createAssistantHistoryMessage(response: string, calls: PendingToolCall[], toolCallCompatible: boolean): ChatMessage {

@@ -21,7 +21,7 @@ test('ConfigStore defaults tool_call options', async () => {
     postpone_tool_calls: 2,
     try_fallback: false,
     allow: {
-      tools: ['read_file', 'list_directory', 'stat_path', 'cwd', 'get_tool_hint'],
+      tools: ['read_file', 'list_directory', 'stat_path', 'cwd', 'get_tool_hint', 'explore', 'edit'],
       commands: []
     }
   });
@@ -42,7 +42,7 @@ test('ConfigStore normalizes missing tool_call allow lists', async () => {
   const config = await new ConfigStore(home).load();
 
   assert.deepEqual(config.tool_call.allow, {
-    tools: ['read_file', 'list_directory', 'stat_path', 'cwd', 'get_tool_hint'],
+    tools: ['read_file', 'list_directory', 'stat_path', 'cwd', 'get_tool_hint', 'explore', 'edit'],
     commands: []
   });
 });
